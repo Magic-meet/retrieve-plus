@@ -1,0 +1,271 @@
+services:
+  mysql:
+    image: ${MYSQL_IMAGE}
+    container_name: mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      TZ: ${TZ}
+    command:
+      - --server-id=1
+      - --log-bin=mysql-bin
+      - --binlog-format=ROW
+      - --binlog-row-image=FULL
+      - --expire-logs-days=7
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+      - --default-authentication-plugin=mysql_native_password
+    ports:
+      - "${MYSQL_PORT}:3306"
+    volumes:
+      - ./mysql/data:/var/lib/mysql
+      - ./mysql/conf.d:/etc/mysql/conf.d
+      - ./mysql/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    networks: [retrieve-net]
+
+  kafka:
+    image: ${KAFKA_IMAGE}
+    container_name: kafka
+    hostname: kafka
+    restart: unless-stopped
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_LISTENERS: INTERNAL://:29092,CONTROLLER://:29093,EXTERNAL://:9092
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:${KAFKA_INTERNAL_PORT},EXTERNAL://localhost:${KAFKA_HOST_PORT}
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:${KAFKA_CONTROLLER_PORT}
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_NUM_PARTITIONS: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      CLUSTER_ID: ${KAFKA_CLUSTER_ID}
+      TZ: ${TZ}
+    ports:
+      - "${KAFKA_HOST_PORT}:9092"
+    volumes:
+      - ./kafka/data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      retries: 20
+      start_period: 20s
+    networks: [retrieve-net]
+
+  kafka-init:
+    image: ${KAFKA_IMAGE}
+    container_name: kafka-init
+    depends_on:
+      kafka:
+        condition: service_healthy
+    restart: "no"
+    entrypoint: ["/bin/bash", "/opt/kafka/init/create-topics.sh"]
+    volumes:
+      - ./kafka/init/create-topics.sh:/opt/kafka/init/create-topics.sh:ro
+    networks: [retrieve-net]
+
+  elasticsearch:
+    build:
+      context: ./elasticsearch
+      args:
+        ES_VERSION: ${ES_VERSION}
+    image: retrieve-new-elasticsearch-ik:${ES_VERSION}
+    container_name: elasticsearch
+    hostname: elasticsearch
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ}
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      xpack.security.enrollment.enabled: "false"
+      ES_JAVA_OPTS: ${ES_JAVA_OPTS}
+    ports:
+      - "${ES_PORT}:9200"
+      - "${ES_TRANSPORT_PORT}:9300"
+    volumes:
+      - ./elasticsearch/data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:9200 >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 30
+      start_period: 40s
+    networks: [retrieve-net]
+
+  grobid:
+    image: ${GROBID_IMAGE}
+    container_name: grobid
+    restart: unless-stopped
+    ports:
+      - "${GROBID_HTTP_PORT}:8070"
+      - "${GROBID_ADMIN_PORT}:8071"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8070/api/isalive | grep -q true"]
+      interval: 20s
+      timeout: 10s
+      retries: 30
+      start_period: 60s
+    networks: [retrieve-net]
+
+  canal:
+    image: ${CANAL_IMAGE}
+    container_name: canal
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+    environment:
+      TZ: ${TZ}
+    ports:
+      - "${CANAL_PORT}:11111"
+      - "${CANAL_METRICS_PORT}:11112"
+    volumes:
+      - ./canal/conf/canal.properties:/home/admin/canal-server/conf/canal.properties:ro
+      - ./canal/conf/example/instance.properties:/home/admin/canal-server/conf/example/instance.properties:ro
+      - ./canal/logs:/home/admin/canal-server/logs
+    networks: [retrieve-net]
+
+  fastdfs:
+    build:
+      context: ./fastdfs
+    image: retrieve-new-fastdfs:local
+    container_name: fastdfs
+    hostname: fastdfs
+    restart: unless-stopped
+    ports:
+      - "${FASTDFS_TRACKER_PORT}:22122"
+      - "${FASTDFS_STORAGE_PORT}:23000"
+      - "${FASTDFS_HTTP_PORT}:8888"
+    volumes:
+      - ./fastdfs/data:/opt/fastdfs
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 22122 && nc -z 127.0.0.1 23000 && nc -z 127.0.0.1 8888"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 40s
+    networks: [retrieve-net]
+
+  qwen3-embedding-init:
+    build:
+      context: ./project/retrieve-python
+    image: retrieve-new-python:local
+    container_name: qwen3-embedding-init
+    restart: "no"
+    command: ["python", "/app/retrieve-python/docker/download_qwen3_embedding.py"]
+    environment:
+      HF_ENDPOINT: ${HF_ENDPOINT}
+      HF_HOME: /opt/hf-cache
+      TRANSFORMERS_CACHE: /opt/hf-cache/transformers
+      QWEN3_EMBEDDING_MODEL: ${QWEN3_EMBEDDING_MODEL}
+    volumes:
+      - ${HF_HOME}:/opt/hf-cache
+    networks: [retrieve-net]
+
+  retrieve-python-rpc:
+    build:
+      context: ./project/retrieve-python
+    image: retrieve-new-python:local
+    container_name: retrieve-python-rpc
+    restart: unless-stopped
+    depends_on:
+      qwen3-embedding-init:
+        condition: service_completed_successfully
+    command: ["bash", "/app/retrieve-python/docker/start-rpc.sh"]
+    environment:
+      HF_ENDPOINT: ${HF_ENDPOINT}
+      GRPC_PORT: ${GRPC_PORT}
+      HF_HOME: /opt/hf-cache
+      TRANSFORMERS_CACHE: /opt/hf-cache/transformers
+      QWEN3_EMBEDDING_MODEL: ${QWEN3_EMBEDDING_MODEL}
+      QWEN3_QUERY_INSTRUCTION: ${QWEN3_QUERY_INSTRUCTION}
+      QWEN3_MAX_LENGTH: ${QWEN3_MAX_LENGTH}
+    volumes:
+      - ${HF_HOME}:/opt/hf-cache
+    ports:
+      - "${GRPC_PORT}:50051"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          python -c 'import socket; s=socket.socket(); s.settimeout(2); s.connect(("127.0.0.1",50051)); s.close()'
+      interval: 20s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks: [retrieve-net]
+
+  retrieve-python-pdf:
+    build:
+      context: ./project/retrieve-python
+    image: retrieve-new-python:local
+    container_name: retrieve-python-pdf
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+      grobid:
+        condition: service_healthy
+      qwen3-embedding-init:
+        condition: service_completed_successfully
+    command: ["bash", "/app/retrieve-python/docker/start-pdf-worker.sh"]
+    environment:
+      HF_ENDPOINT: ${HF_ENDPOINT}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      GROBID_SERVER: grobid
+      GROBID_PORT: 8070
+      HF_HOME: /opt/hf-cache
+      TRANSFORMERS_CACHE: /opt/hf-cache/transformers
+      QWEN3_EMBEDDING_MODEL: ${QWEN3_EMBEDDING_MODEL}
+      QWEN3_MAX_LENGTH: ${QWEN3_MAX_LENGTH}
+    volumes:
+      - ${HF_HOME}:/opt/hf-cache
+      - ./project/retrieve-python/grobid2json/out_dir:/app/retrieve-python/grobid2json/out_dir
+    networks: [retrieve-net]
+
+  retrieve-python-vector:
+    build:
+      context: ./project/retrieve-python
+    image: retrieve-new-python:local
+    container_name: retrieve-python-vector
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+      qwen3-embedding-init:
+        condition: service_completed_successfully
+    command: ["bash", "/app/retrieve-python/docker/start-vector-worker.sh"]
+    environment:
+      HF_ENDPOINT: ${HF_ENDPOINT}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      HF_HOME: /opt/hf-cache
+      TRANSFORMERS_CACHE: /opt/hf-cache/transformers
+      QWEN3_EMBEDDING_MODEL: ${QWEN3_EMBEDDING_MODEL}
+      QWEN3_MAX_LENGTH: ${QWEN3_MAX_LENGTH}
+    volumes:
+      - ${HF_HOME}:/opt/hf-cache
+    networks: [retrieve-net]
+
+networks:
+  retrieve-net:
+    driver: bridge
+
