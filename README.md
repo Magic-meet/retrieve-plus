@@ -480,6 +480,4 @@ FASTDFS_TRACKER_SERVERS=fastdfs:22122
 - MySQL、Kafka、Elasticsearch、FastDFS 的数据目录是持久化目录，迁移或清理前应先备份。
 - `docker-compose-no.yml` 只启动中间件和 Python 相关服务，不包含 Java 后端和 Vue 前端，适合只调试基础设施或单独在宿主机运行后端/前端。
 
-## 许可证
 
-当前仓库未声明许可证。如需公开发布，建议补充 `LICENSE` 文件并明确第三方依赖、模型和数据的使用约束。
