@@ -1,0 +1,114 @@
+Java HotSpot(TM) 64-Bit Server VM warning: ignoring option PermSize=96m; support was removed in 8.0
+Java HotSpot(TM) 64-Bit Server VM warning: ignoring option MaxPermSize=256m; support was removed in 8.0
+00:30:12,373 |-INFO in ch.qos.logback.classic.LoggerContext[default] - Found resource [/home/admin/canal-server/bin/../conf/logback.xml] at [file:/home/admin/canal-server/bin/../conf/logback.xml]
+00:30:12,406 |-INFO in ch.qos.logback.classic.joran.action.ConfigurationAction - debug attribute not set
+00:30:12,414 |-INFO in ch.qos.logback.classic.joran.action.ConfigurationAction - Will scan for changes in [file:/home/admin/canal-server/bin/../conf/logback.xml] 
+00:30:12,414 |-INFO in ch.qos.logback.classic.joran.action.ConfigurationAction - Setting ReconfigureOnChangeTask scanning period to 5 seconds
+00:30:12,415 |-INFO in ch.qos.logback.classic.joran.action.JMXConfiguratorAction - begin
+00:30:12,477 |-INFO in ch.qos.logback.core.joran.action.AppenderAction - About to instantiate appender of type [ch.qos.logback.core.ConsoleAppender]
+00:30:12,478 |-INFO in ch.qos.logback.core.joran.action.AppenderAction - Naming appender as [STDOUT]
+00:30:12,480 |-INFO in ch.qos.logback.core.joran.action.NestedComplexPropertyIA - Assuming default type [ch.qos.logback.classic.encoder.PatternLayoutEncoder] for [encoder] property
+00:30:12,503 |-INFO in ch.qos.logback.core.joran.action.AppenderAction - About to instantiate appender of type [ch.qos.logback.classic.sift.SiftingAppender]
+00:30:12,503 |-INFO in ch.qos.logback.core.joran.action.AppenderAction - Naming appender as [CANAL-ROOT]
+00:30:12,505 |-INFO in ch.qos.logback.core.joran.action.NestedComplexPropertyIA - Assuming default type [ch.qos.logback.classic.sift.MDCBasedDiscriminator] for [discriminator] property
+00:30:12,506 |-INFO in ch.qos.logback.core.joran.action.AppenderAction - About to instantiate appender of type [ch.qos.logback.classic.sift.SiftingAppender]
+00:30:12,506 |-INFO in ch.qos.logback.core.joran.action.AppenderAction - Naming appender as [CANAL-META]
+00:30:12,506 |-INFO in ch.qos.logback.core.joran.action.NestedComplexPropertyIA - Assuming default type [ch.qos.logback.classic.sift.MDCBasedDiscriminator] for [discriminator] property
+00:30:12,506 |-INFO in ch.qos.logback.core.joran.action.AppenderAction - About to instantiate appender of type [ch.qos.logback.core.rolling.RollingFileAppender]
+00:30:12,507 |-INFO in ch.qos.logback.core.joran.action.AppenderAction - Naming appender as [RocketmqClientAppender]
+00:30:12,510 |-INFO in c.q.l.core.rolling.TimeBasedRollingPolicy@1225439493 - Will use gz compression
+00:30:12,510 |-INFO in c.q.l.core.rolling.TimeBasedRollingPolicy@1225439493 - Will use the pattern ../logs/canal/%d{yyyy-MM-dd}/rocketmq_client-%d{yyyy-MM-dd}-%i.log for the active file
+00:30:12,511 |-INFO in ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP@56ac3a89 - The date pattern is 'yyyy-MM-dd' from file name pattern '../logs/canal/%d{yyyy-MM-dd}/rocketmq_client-%d{yyyy-MM-dd}-%i.log.gz'.
+00:30:12,511 |-INFO in ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP@56ac3a89 - Roll-over at midnight.
+00:30:12,512 |-INFO in ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP@56ac3a89 - Setting initial period to Sun Apr 19 00:30:12 CST 2026
+00:30:12,512 |-WARN in ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP@56ac3a89 - SizeAndTimeBasedFNATP is deprecated. Use SizeAndTimeBasedRollingPolicy instead
+00:30:12,512 |-WARN in ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP@56ac3a89 - For more information see http://logback.qos.ch/manual/appenders.html#SizeAndTimeBasedRollingPolicy
+00:30:12,513 |-INFO in ch.qos.logback.core.joran.action.NestedComplexPropertyIA - Assuming default type [ch.qos.logback.classic.encoder.PatternLayoutEncoder] for [encoder] property
+00:30:12,513 |-INFO in ch.qos.logback.core.rolling.RollingFileAppender[RocketmqClientAppender] - Active log file name: ../logs/canal/rocketmq_client.log
+00:30:12,513 |-INFO in ch.qos.logback.core.rolling.RollingFileAppender[RocketmqClientAppender] - File property is set to [../logs/canal/rocketmq_client.log]
+00:30:12,513 |-INFO in ch.qos.logback.classic.joran.action.LoggerAction - Setting additivity of logger [com.alibaba.otter.canal.instance] to false
+00:30:12,514 |-INFO in ch.qos.logback.classic.joran.action.LevelAction - com.alibaba.otter.canal.instance level set to INFO
+00:30:12,514 |-INFO in ch.qos.logback.core.joran.action.AppenderRefAction - Attaching appender named [CANAL-ROOT] to Logger[com.alibaba.otter.canal.instance]
+00:30:12,514 |-INFO in ch.qos.logback.classic.joran.action.LoggerAction - Setting additivity of logger [com.alibaba.otter.canal.deployer] to false
+00:30:12,514 |-INFO in ch.qos.logback.classic.joran.action.LevelAction - com.alibaba.otter.canal.deployer level set to INFO
+00:30:12,514 |-INFO in ch.qos.logback.core.joran.action.AppenderRefAction - Attaching appender named [CANAL-ROOT] to Logger[com.alibaba.otter.canal.deployer]
+00:30:12,514 |-INFO in ch.qos.logback.classic.joran.action.LoggerAction - Setting additivity of logger [com.alibaba.otter.canal.meta.FileMixedMetaManager] to false
+00:30:12,514 |-INFO in ch.qos.logback.classic.joran.action.LevelAction - com.alibaba.otter.canal.meta.FileMixedMetaManager level set to INFO
+00:30:12,514 |-INFO in ch.qos.logback.core.joran.action.AppenderRefAction - Attaching appender named [CANAL-META] to Logger[com.alibaba.otter.canal.meta.FileMixedMetaManager]
+00:30:12,514 |-INFO in ch.qos.logback.classic.joran.action.LoggerAction - Setting additivity of logger [com.alibaba.otter.canal.connector.kafka] to false
+00:30:12,514 |-INFO in ch.qos.logback.classic.joran.action.LevelAction - com.alibaba.otter.canal.connector.kafka level set to INFO
+00:30:12,514 |-INFO in ch.qos.logback.core.joran.action.AppenderRefAction - Attaching appender named [CANAL-ROOT] to Logger[com.alibaba.otter.canal.connector.kafka]
+00:30:12,514 |-INFO in ch.qos.logback.classic.joran.action.LoggerAction - Setting additivity of logger [com.alibaba.otter.canal.connector.rocketmq] to false
+00:30:12,514 |-INFO in ch.qos.logback.classic.joran.action.LevelAction - com.alibaba.otter.canal.connector.rocketmq level set to INFO
+00:30:12,514 |-INFO in ch.qos.logback.core.joran.action.AppenderRefAction - Attaching appender named [CANAL-ROOT] to Logger[com.alibaba.otter.canal.connector.rocketmq]
+00:30:12,514 |-INFO in ch.qos.logback.classic.joran.action.LoggerAction - Setting additivity of logger [com.alibaba.otter.canal.connector.rabbitmq] to false
+00:30:12,514 |-INFO in ch.qos.logback.classic.joran.action.LevelAction - com.alibaba.otter.canal.connector.rabbitmq level set to INFO
+00:30:12,514 |-INFO in ch.qos.logback.core.joran.action.AppenderRefAction - Attaching appender named [CANAL-ROOT] to Logger[com.alibaba.otter.canal.connector.rabbitmq]
+00:30:12,514 |-INFO in ch.qos.logback.classic.joran.action.LoggerAction - Setting additivity of logger [RocketmqClient] to false
+00:30:12,514 |-INFO in ch.qos.logback.classic.joran.action.LevelAction - RocketmqClient level set to INFO
+00:30:12,514 |-INFO in ch.qos.logback.core.joran.action.AppenderRefAction - Attaching appender named [RocketmqClientAppender] to Logger[RocketmqClient]
+00:30:12,514 |-INFO in ch.qos.logback.classic.joran.action.LoggerAction - Setting additivity of logger [com.alibaba.otter.canal.connector.pulsarmq] to false
+00:30:12,514 |-INFO in ch.qos.logback.classic.joran.action.LevelAction - com.alibaba.otter.canal.connector.pulsarmq level set to INFO
+00:30:12,514 |-INFO in ch.qos.logback.core.joran.action.AppenderRefAction - Attaching appender named [CANAL-ROOT] to Logger[com.alibaba.otter.canal.connector.pulsarmq]
+00:30:12,514 |-INFO in ch.qos.logback.classic.joran.action.RootLoggerAction - Setting level of ROOT logger to WARN
+00:30:12,514 |-INFO in ch.qos.logback.core.joran.action.AppenderRefAction - Attaching appender named [CANAL-ROOT] to Logger[ROOT]
+00:30:12,514 |-INFO in ch.qos.logback.classic.joran.action.ConfigurationAction - End of configuration.
+00:30:12,514 |-INFO in ch.qos.logback.classic.joran.JoranConfigurator@27c20538 - Registering current configuration as safe fallback point
+
+Java HotSpot(TM) 64-Bit Server VM warning: ignoring option PermSize=96m; support was removed in 8.0
+Java HotSpot(TM) 64-Bit Server VM warning: ignoring option MaxPermSize=256m; support was removed in 8.0
+00:32:48,261 |-INFO in ch.qos.logback.classic.LoggerContext[default] - Found resource [/home/admin/canal-server/bin/../conf/logback.xml] at [file:/home/admin/canal-server/bin/../conf/logback.xml]
+00:32:48,281 |-INFO in ch.qos.logback.classic.joran.action.ConfigurationAction - debug attribute not set
+00:32:48,285 |-INFO in ch.qos.logback.classic.joran.action.ConfigurationAction - Will scan for changes in [file:/home/admin/canal-server/bin/../conf/logback.xml] 
+00:32:48,285 |-INFO in ch.qos.logback.classic.joran.action.ConfigurationAction - Setting ReconfigureOnChangeTask scanning period to 5 seconds
+00:32:48,286 |-INFO in ch.qos.logback.classic.joran.action.JMXConfiguratorAction - begin
+00:32:48,323 |-INFO in ch.qos.logback.core.joran.action.AppenderAction - About to instantiate appender of type [ch.qos.logback.core.ConsoleAppender]
+00:32:48,324 |-INFO in ch.qos.logback.core.joran.action.AppenderAction - Naming appender as [STDOUT]
+00:32:48,326 |-INFO in ch.qos.logback.core.joran.action.NestedComplexPropertyIA - Assuming default type [ch.qos.logback.classic.encoder.PatternLayoutEncoder] for [encoder] property
+00:32:48,338 |-INFO in ch.qos.logback.core.joran.action.AppenderAction - About to instantiate appender of type [ch.qos.logback.classic.sift.SiftingAppender]
+00:32:48,338 |-INFO in ch.qos.logback.core.joran.action.AppenderAction - Naming appender as [CANAL-ROOT]
+00:32:48,339 |-INFO in ch.qos.logback.core.joran.action.NestedComplexPropertyIA - Assuming default type [ch.qos.logback.classic.sift.MDCBasedDiscriminator] for [discriminator] property
+00:32:48,341 |-INFO in ch.qos.logback.core.joran.action.AppenderAction - About to instantiate appender of type [ch.qos.logback.classic.sift.SiftingAppender]
+00:32:48,341 |-INFO in ch.qos.logback.core.joran.action.AppenderAction - Naming appender as [CANAL-META]
+00:32:48,341 |-INFO in ch.qos.logback.core.joran.action.NestedComplexPropertyIA - Assuming default type [ch.qos.logback.classic.sift.MDCBasedDiscriminator] for [discriminator] property
+00:32:48,341 |-INFO in ch.qos.logback.core.joran.action.AppenderAction - About to instantiate appender of type [ch.qos.logback.core.rolling.RollingFileAppender]
+00:32:48,342 |-INFO in ch.qos.logback.core.joran.action.AppenderAction - Naming appender as [RocketmqClientAppender]
+00:32:48,345 |-INFO in c.q.l.core.rolling.TimeBasedRollingPolicy@1225439493 - Will use gz compression
+00:32:48,346 |-INFO in c.q.l.core.rolling.TimeBasedRollingPolicy@1225439493 - Will use the pattern ../logs/canal/%d{yyyy-MM-dd}/rocketmq_client-%d{yyyy-MM-dd}-%i.log for the active file
+00:32:48,346 |-INFO in ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP@56ac3a89 - The date pattern is 'yyyy-MM-dd' from file name pattern '../logs/canal/%d{yyyy-MM-dd}/rocketmq_client-%d{yyyy-MM-dd}-%i.log.gz'.
+00:32:48,346 |-INFO in ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP@56ac3a89 - Roll-over at midnight.
+00:32:48,347 |-INFO in ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP@56ac3a89 - Setting initial period to Sun Apr 19 00:30:12 CST 2026
+00:32:48,347 |-WARN in ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP@56ac3a89 - SizeAndTimeBasedFNATP is deprecated. Use SizeAndTimeBasedRollingPolicy instead
+00:32:48,347 |-WARN in ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP@56ac3a89 - For more information see http://logback.qos.ch/manual/appenders.html#SizeAndTimeBasedRollingPolicy
+00:32:48,348 |-INFO in ch.qos.logback.core.joran.action.NestedComplexPropertyIA - Assuming default type [ch.qos.logback.classic.encoder.PatternLayoutEncoder] for [encoder] property
+00:32:48,348 |-INFO in ch.qos.logback.core.rolling.RollingFileAppender[RocketmqClientAppender] - Active log file name: ../logs/canal/rocketmq_client.log
+00:32:48,348 |-INFO in ch.qos.logback.core.rolling.RollingFileAppender[RocketmqClientAppender] - File property is set to [../logs/canal/rocketmq_client.log]
+00:32:48,349 |-INFO in ch.qos.logback.classic.joran.action.LoggerAction - Setting additivity of logger [com.alibaba.otter.canal.instance] to false
+00:32:48,349 |-INFO in ch.qos.logback.classic.joran.action.LevelAction - com.alibaba.otter.canal.instance level set to INFO
+00:32:48,349 |-INFO in ch.qos.logback.core.joran.action.AppenderRefAction - Attaching appender named [CANAL-ROOT] to Logger[com.alibaba.otter.canal.instance]
+00:32:48,349 |-INFO in ch.qos.logback.classic.joran.action.LoggerAction - Setting additivity of logger [com.alibaba.otter.canal.deployer] to false
+00:32:48,349 |-INFO in ch.qos.logback.classic.joran.action.LevelAction - com.alibaba.otter.canal.deployer level set to INFO
+00:32:48,349 |-INFO in ch.qos.logback.core.joran.action.AppenderRefAction - Attaching appender named [CANAL-ROOT] to Logger[com.alibaba.otter.canal.deployer]
+00:32:48,349 |-INFO in ch.qos.logback.classic.joran.action.LoggerAction - Setting additivity of logger [com.alibaba.otter.canal.meta.FileMixedMetaManager] to false
+00:32:48,349 |-INFO in ch.qos.logback.classic.joran.action.LevelAction - com.alibaba.otter.canal.meta.FileMixedMetaManager level set to INFO
+00:32:48,349 |-INFO in ch.qos.logback.core.joran.action.AppenderRefAction - Attaching appender named [CANAL-META] to Logger[com.alibaba.otter.canal.meta.FileMixedMetaManager]
+00:32:48,349 |-INFO in ch.qos.logback.classic.joran.action.LoggerAction - Setting additivity of logger [com.alibaba.otter.canal.connector.kafka] to false
+00:32:48,349 |-INFO in ch.qos.logback.classic.joran.action.LevelAction - com.alibaba.otter.canal.connector.kafka level set to INFO
+00:32:48,349 |-INFO in ch.qos.logback.core.joran.action.AppenderRefAction - Attaching appender named [CANAL-ROOT] to Logger[com.alibaba.otter.canal.connector.kafka]
+00:32:48,349 |-INFO in ch.qos.logback.classic.joran.action.LoggerAction - Setting additivity of logger [com.alibaba.otter.canal.connector.rocketmq] to false
+00:32:48,349 |-INFO in ch.qos.logback.classic.joran.action.LevelAction - com.alibaba.otter.canal.connector.rocketmq level set to INFO
+00:32:48,349 |-INFO in ch.qos.logback.core.joran.action.AppenderRefAction - Attaching appender named [CANAL-ROOT] to Logger[com.alibaba.otter.canal.connector.rocketmq]
+00:32:48,349 |-INFO in ch.qos.logback.classic.joran.action.LoggerAction - Setting additivity of logger [com.alibaba.otter.canal.connector.rabbitmq] to false
+00:32:48,349 |-INFO in ch.qos.logback.classic.joran.action.LevelAction - com.alibaba.otter.canal.connector.rabbitmq level set to INFO
+00:32:48,349 |-INFO in ch.qos.logback.core.joran.action.AppenderRefAction - Attaching appender named [CANAL-ROOT] to Logger[com.alibaba.otter.canal.connector.rabbitmq]
+00:32:48,349 |-INFO in ch.qos.logback.classic.joran.action.LoggerAction - Setting additivity of logger [RocketmqClient] to false
+00:32:48,349 |-INFO in ch.qos.logback.classic.joran.action.LevelAction - RocketmqClient level set to INFO
+00:32:48,349 |-INFO in ch.qos.logback.core.joran.action.AppenderRefAction - Attaching appender named [RocketmqClientAppender] to Logger[RocketmqClient]
+00:32:48,349 |-INFO in ch.qos.logback.classic.joran.action.LoggerAction - Setting additivity of logger [com.alibaba.otter.canal.connector.pulsarmq] to false
+00:32:48,349 |-INFO in ch.qos.logback.classic.joran.action.LevelAction - com.alibaba.otter.canal.connector.pulsarmq level set to INFO
+00:32:48,349 |-INFO in ch.qos.logback.core.joran.action.AppenderRefAction - Attaching appender named [CANAL-ROOT] to Logger[com.alibaba.otter.canal.connector.pulsarmq]
+00:32:48,349 |-INFO in ch.qos.logback.classic.joran.action.RootLoggerAction - Setting level of ROOT logger to WARN
+00:32:48,349 |-INFO in ch.qos.logback.core.joran.action.AppenderRefAction - Attaching appender named [CANAL-ROOT] to Logger[ROOT]
+00:32:48,349 |-INFO in ch.qos.logback.classic.joran.action.ConfigurationAction - End of configuration.
+00:32:48,349 |-INFO in ch.qos.logback.classic.joran.JoranConfigurator@27c20538 - Registering current configuration as safe fallback point
+

@@ -1,0 +1,20 @@
+2026-04-19 00:30:12.517 [main] INFO  com.alibaba.otter.canal.deployer.CanalLauncher - ## set default uncaught exception handler
+2026-04-19 00:30:12.520 [main] INFO  com.alibaba.otter.canal.deployer.CanalLauncher - ## load canal configurations
+2026-04-19 00:30:12.574 [main] INFO  com.alibaba.otter.canal.deployer.CanalStarter - ## start the canal server.
+2026-04-19 00:30:12.586 [main] ERROR com.alibaba.otter.canal.deployer.CanalLauncher - ## Something goes wrong when starting up the canal Server:
+java.lang.NullPointerException: null
+	at com.alibaba.otter.canal.deployer.CanalController.parseInstanceConfig(CanalController.java:436)
+	at com.alibaba.otter.canal.deployer.CanalController.initInstanceConfig(CanalController.java:411)
+	at com.alibaba.otter.canal.deployer.CanalController.<init>(CanalController.java:90)
+	at com.alibaba.otter.canal.deployer.CanalStarter.start(CanalStarter.java:87)
+	at com.alibaba.otter.canal.deployer.CanalLauncher.main(CanalLauncher.java:128)
+2026-04-19 00:32:48.352 [main] INFO  com.alibaba.otter.canal.deployer.CanalLauncher - ## set default uncaught exception handler
+2026-04-19 00:32:48.355 [main] INFO  com.alibaba.otter.canal.deployer.CanalLauncher - ## load canal configurations
+2026-04-19 00:32:48.408 [main] INFO  com.alibaba.otter.canal.deployer.CanalStarter - ## start the canal server.
+2026-04-19 00:32:48.418 [main] ERROR com.alibaba.otter.canal.deployer.CanalLauncher - ## Something goes wrong when starting up the canal Server:
+java.lang.NullPointerException: null
+	at com.alibaba.otter.canal.deployer.CanalController.parseInstanceConfig(CanalController.java:436)
+	at com.alibaba.otter.canal.deployer.CanalController.initInstanceConfig(CanalController.java:411)
+	at com.alibaba.otter.canal.deployer.CanalController.<init>(CanalController.java:90)
+	at com.alibaba.otter.canal.deployer.CanalStarter.start(CanalStarter.java:87)
+	at com.alibaba.otter.canal.deployer.CanalLauncher.main(CanalLauncher.java:128)
