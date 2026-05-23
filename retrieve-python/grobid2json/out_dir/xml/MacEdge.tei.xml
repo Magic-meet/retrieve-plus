@@ -1,0 +1,1229 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xml:space="preserve" xmlns="http://www.tei-c.org/ns/1.0" 
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+xsi:schemaLocation="http://www.tei-c.org/ns/1.0 https://raw.githubusercontent.com/kermitt2/grobid/master/grobid-home/schemas/xsd/Grobid.xsd"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+	<teiHeader xml:lang="en">
+		<fileDesc>
+			<titleStmt>
+				<title level="a" type="main">MacEdge: Motion-aware Collaborative Inference between Large and Small Models for Real-time Video Analysis</title>
+			</titleStmt>
+			<publicationStmt>
+				<publisher/>
+				<availability status="unknown"><licence/></availability>
+			</publicationStmt>
+			<sourceDesc>
+				<biblStruct status="extracted">
+					<analytic>
+						<title level="a" type="main">MacEdge: Motion-aware Collaborative Inference between Large and Small Models for Real-time Video Analysis</title>
+					</analytic>
+					<monogr>
+						<imprint>
+							<date/>
+						</imprint>
+					</monogr>
+					<idno type="MD5">BB172C24646632280FD7C292C60F62A4</idno>
+				</biblStruct>
+			</sourceDesc>
+		</fileDesc>
+		<encodingDesc>
+			<appInfo>
+				<application version="0.9.0" ident="GROBID" when="2026-04-23T02:54+0000">
+					<desc>GROBID - A machine learning software for extracting information from scholarly documents</desc>
+					<label type="revision">0.9.0</label>
+					<label type="parameters">startPage=-1, endPage=-1, consolidateCitations=0, consolidateHeader=0, consolidateFunders=0, includeRawAffiliations=false, includeRawCitations=true, includeRawCopyrights=false, generateTeiIds=false, generateTeiCoordinates=[], flavor=null</label>
+					<ref target="https://github.com/kermitt2/grobid"/>
+				</application>
+			</appInfo>
+		</encodingDesc>
+		<profileDesc>
+			<textClass>
+				<keywords>Edge Computing Offload Computing Collaborative Inference Real-time Video Analytics Object Detection Object Tracking</keywords>
+			</textClass>
+			<abstract>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>MacEdge: Motion-aware Collaborative Inference between Large and Small Models for Real-time Video Analysis</head><p>, • Dynamic offloading adjusts to object motion, reducing redundant data transmission and bandwidth.</p><p>• Online 2D bin packing schedules tasks by time, boosting edge server throughput and real-time performance.</p><p>• Experiments show the framework significantly improves accuracy and latency over baseline methods.</p><p>• The system features cross-platform compatibility and a modular design for stable performance.</p></div>
+			</abstract>
+		</profileDesc>
+	</teiHeader>
+	<text xml:lang="en">
+		<body>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="1.">Introduction</head><p>With the rapid growth in application demands such as congestion prediction, accident detection, and traffic violation monitoring in traffic surveillance, deploying deep neural network (DNN) models for computer vision tasks on camera-equipped end devices has become critical for enabling smart cities <ref type="bibr" target="#b0">[1]</ref>, autonomous vehicles <ref type="bibr" target="#b1">[2]</ref>, and security monitoring systems <ref type="bibr" target="#b2">[3]</ref>. This requires devices to perform real-time object detection, tracking, and data analysis on video streams with low latency and high accuracy. However, end devices often lack sufficient computational resources to perform inference with large, high-precision DNN models. For example, deploying the YOLO 11m model on a Raspberry Pi 5, a resource-limited device, can only achieve single-digit frame rates, which is insufficient for real-time edge inference.</p><p>To address the constrained computational resources of end devices, many systems adopt End-Edge collaborative inference between end devices and edge servers <ref type="bibr" target="#b3">[4]</ref><ref type="bibr" target="#b4">[5]</ref><ref type="bibr" target="#b5">[6]</ref>. In this setting, lightweight models on the end device process simple or motion-stable objects, whereas complex or highly dynamic objects are offloaded to the edge server for inference using a high-precision large model, thereby reducing the computation required on the end device. However, transmitting intermediate features or data introduces additional latency that can degrade real-time performance. Consequently, End-Edge collaborative frameworks require 1 efficient offloading strategies that minimize communication delay while improving end-to-end inference efficiency.</p><p>Latency Bottleneck in End-Edge Collaborative Video Analysis. Due to network latency, offloading every frame to the edge server is typically infeasible in real-time video analytics. Consequently, many studies offload only a subset of frames and use tracking algorithms to propagate detection results to non-offloaded frames <ref type="bibr" target="#b6">[7,</ref><ref type="bibr" target="#b7">8]</ref>. However, in existing systems, the tracker must continue predicting while awaiting the server's detection outputs, and the detections used for recalibration often arrive several frames late. As a result, even moderate inference latency can quickly degrade tracking quality at typical frame rates, where delay-induced errors accumulate over time and ultimately reduce detection accuracy (see Section 3.1).</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Limitations of Existing Solutions.</head><p>Prior work typically reduces offloading latency in two ways: decreasing the amount of transmitted data or reducing offloading frequency. To reduce transmitted data, Region of Interest (ROI) and tilebased encoding lower bandwidth consumption by selectively transmitting high-quality regions while compressing the remainder <ref type="bibr" target="#b6">[7,</ref><ref type="bibr" target="#b8">9]</ref>. However, when objects are sparse, small, or misaligned with tile partitions, an entire tile still needs to be offloaded, and in extreme cases this degenerates into fullframe offloading, resulting in substantial redundant transmission. To reduce offloading frequency, tracking-based reuse strategies skip offloading for some frames <ref type="bibr" target="#b6">[7,</ref><ref type="bibr" target="#b7">8]</ref>. However, multi-object tracking that relies on inertial assumptions is brittle under non-uniform motion, which forces frequent recalibration and leads to bursty offloading and unstable latency. Meanwhile, existing edge-side batching <ref type="bibr" target="#b9">[10,</ref><ref type="bibr" target="#b10">11]</ref> often ignores client-perceived waiting time. Under multi-client contention, naive batching introduces additional queueing delay, increasing the latency of returned detections and thereby making deadline violations more likely.</p><p>In this paper, we propose a Motion-aware Collaborative Inference framework in End-Edge systems (MacEdge) for real-time video analysis, which performs large-small model collaborative inference through dynamic offloading decisions guided by tracking outputs.</p><p>To address redundant transmission, MacEdge introduces an object-level offloading strategy that makes perobject decisions based on tracker outputs and object attributes (e.g., distance and effective resolution). Objects that can be recognized locally with high confidence are processed on the end device by a lightweight model, whereas hardto-recognize objects are selectively offloaded to the edge server for high-accuracy inference using a large model. By replacing coarse-grained full-frame or ROI offloading, this strategy enables finer-grained, object-level transmission. To address bursty offloading under non-uniform motion, MacEdge adopts a motion-aware dynamic recalibration strategy. Specifically, it groups objects by motion patterns and adaptively adjusts the recalibration interval: motion-stable objects can rely on tracking for longer periods, whereas objects with frequently changing motion states are recalibrated more often. By reducing unnecessary transmissions, this design also prevents accuracy degradation caused by non-uniform motion. To address deadline violations under multi-client loads, MacEdge implements a deadlineaware batching mechanism at the edge. The edge server stitches sub-frames from heterogeneous clients into a unified canvas that matches the model input and uses an interruptible online two-dimensional bin-packing strategy to trigger inference as deadlines approach, thereby enabling efficient batching across concurrent multi-client requests.</p><p>To the best of our knowledge, MacEdge is the first dynamic, object-level End-Edge collaborative video analytics framework that jointly integrates a motion-aware objectlevel offloading and recalibration strategy with a deadlineaware batching mechanism, thereby sustaining real-time tracking accuracy across heterogeneous devices and dynamic network conditions. The main contributions of this paper are as follows:</p><p>• We propose an object-level, motion-aware offloading and recalibration scheme that processes easy objects locally with a lightweight model, selectively offloads hard objects to an edge large model, and adapts recalibration intervals to motion patterns to reduce redundant transmission and mitigate bursty offloading and accuracy degradation under non-uniform motion.</p><p>• We propose a deadline-aware edge batching mechanism that incorporates an online two-dimensional binpacking strategy to reduce latency while improving throughput under multiple clients.</p><p>• Extensive experiments show that, compared with baselines such as purely local inference and ROI encoding, our framework achieves significant improvements in both accuracy and latency, and maintains real-time inference capability across a range of frame rates and network conditions.</p><p>The remainder of this paper is organized as follows. Section 2 reviews related work; Section 3 presents our motivation; Section 4 details the proposed MacEdge framework and its analysis; Section 5 describes the implementation; Section 6 reports experimental details and results; and Section 7 concludes the paper.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.">Related Work</head><p>This section summarizes related work in three categories and discusses their limitations and differences from our approach.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.1.">Object Detection and Tracking</head><p>Detection and tracking are core research issues in video stream analysis. Object detection aims to identify and locate specific targets within video frames <ref type="bibr" target="#b11">[12]</ref><ref type="bibr" target="#b12">[13]</ref><ref type="bibr" target="#b13">[14]</ref>. Many studies have focused on optimizing the architectures of object detection models, such as YOLO, to improve detection accuracy. For instance, Hyper-YOLO introduces hypergraph computation and hybrid aggregation networks for enhanced feature interactions <ref type="bibr" target="#b14">[15]</ref>, YOLO-MS improves multi-scale feature representations <ref type="bibr" target="#b15">[16]</ref>, and 3A-YOLO <ref type="bibr" target="#b16">[17]</ref> increases discriminative capability via hierarchical attention mechanisms. In contrast to these model-centric approaches, our research combines detection results with a predictioncorrection tracking strategy, enabling effective prediction of target motion trajectories and robust recovery from target loss or occlusion, which together enhance the real-time performance and reliability of the overall system.</p><p>Object tracking aims to continuously track the movement of targets within video sequences <ref type="bibr" target="#b17">[18,</ref><ref type="bibr" target="#b18">19]</ref>. Existing methods focus on efficient and accurate tracking to improve precision. For example, MOTIP formulates multi-object tracking as a contextual ID prediction task for direct object association <ref type="bibr" target="#b19">[20]</ref>, while OmniTrack addresses panoramic image distortions and achieves state-of-the-art performance in omnidirectional tracking <ref type="bibr" target="#b20">[21]</ref>. In our work, we leverage highperformance tracking algorithms to reliably predict object positions and thereby reduce the frequency of data offloading. The outputs of these tracking algorithms are further used to guide offloading decisions, ensuring low latency and adaptive system behavior.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.2.">Edge Computing for Real-time Video Analytics</head><p>The primary goal of edge real-time video analytics is to utilize edge devices to perform real-time tasks such as object detection, depth estimation, or pose estimation. These tasks can be executed locally, offloaded to edge servers, or distributed across end, edge, and cloud layers for collaborative processing. Existing research can be broadly categorized into the following three approaches: 1. On-device computation: Methods such as FlexDNN and MCDNN reduce model size and computation through pruning <ref type="bibr" target="#b21">[22,</ref><ref type="bibr" target="#b22">23]</ref>, quantization, knowledge distillation, or dynamic sub-network selection. These approaches enable real-time video analytics on mobile or embedded devices with low latency and energy consumption, without relying on external networks, making them suitable for scenarios with unstable connectivity or high data privacy requirements. 2. Edge offloading: Approaches such as JSAS-MTMGS utilized DNN model sharing and partitioning on the edge <ref type="bibr" target="#b23">[24]</ref>, allowing edge servers to process diverse offloading requests from multiple clients. AccMPEG introduces a novel video encoding and streaming system that reduces end-to-end inference latency by 10%-43% without sacrificing accuracy <ref type="bibr" target="#b24">[25]</ref>. 3. End-Edge collaboration: Large-small model collaborative inference has emerged as an effective paradigm, enabling adaptive task partitioning between lightweight models on devices and high-precision models on edge. EdgeDuet proposed a collaborative framework where large objects are processed by local models <ref type="bibr" target="#b7">[8]</ref>, while small objects are offloaded to edge servers. AccuMO addressed multi-task scenarios by coordinating local models, local tracking, and computation offloading to enhance real-time performance through optimized scheduling <ref type="bibr" target="#b25">[26]</ref>.</p><p>Many existing studies, including ours, adopt a detectiontracking framework to ensure real-time performance <ref type="bibr" target="#b4">[5,</ref><ref type="bibr" target="#b6">7,</ref><ref type="bibr" target="#b7">8,</ref><ref type="bibr" target="#b25">26]</ref>. Parallel execution of detection and tracking can maximize responsiveness, but detection latency and tracker error accumulation remain challenging. To address this, we introduce modifications that enable process blocking and synchronized detection. While this may sacrifice some realtime performance, it helps alleviate errors caused by delayed results.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.3.">Communication-Efficient in Edge Video Analytics</head><p>As bandwidth remains a significant bottleneck in edgeassisted video analytics, numerous studies have focused on communication-efficient techniques to transmit compact, task-relevant features instead of full video frames.</p><p>In collaborative edge perception, prioritized information bottleneck (PIB) methods compress spatio-temporal redundancies and transmit only essential features, reducing bandwidth usage and improving detection accuracy under challenging channel conditions <ref type="bibr" target="#b26">[27]</ref>. Accuracy-aware video encoding systems such as AccMPEG dynamically adjust encoding quality based on its impact on server-side inference, achieving reduction in end-to-end delay without compromising accuracy <ref type="bibr" target="#b24">[25]</ref>. For latency-sensitive scenarios like AR/MR, integrated pipelines that combine low-latency offloading with fast tracking support high-accuracy object detection at high frame rates with minimal overhead <ref type="bibr" target="#b27">[28]</ref>.</p><p>Collectively, these approaches highlight the importance and effectiveness of communication-efficient designs in enabling real-time, high-accuracy edge analytics. In MacEdge, we implement object-level offloading, and design dedicated n n+1 n+2 n+3 n+4 Frame ID</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Frame Transport</head></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Client Server</head></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Results Transport Inference Track</head><p>Fig. <ref type="figure">1</ref>. Real-time video analytics using tracking, where the offloading process is independent of the tracking process, the frequency of offloading is usually fixed, and there is a delay in the results obtained by the tracker itself.</p><p>frame cropping and result processing procedures to ensure high accuracy while minimizing transmission overhead.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="2.4.">Split computing and layer-wise DNN partitioning</head><p>Split computing (SC) is a widely studied form of collaborative inference that partitions a single DNN at an intermediate layer, executes the front part on the end device, and offloads intermediate activations to edge or cloud server to finish inference <ref type="bibr" target="#b28">[29,</ref><ref type="bibr" target="#b29">30]</ref>. Prior work focuses on cut-layer selection and adaptation as well as reducing feature-tensor transmission overhead, e.g., via activation compression or bottleneck modules <ref type="bibr" target="#b30">[31,</ref><ref type="bibr" target="#b31">32]</ref>, and recent studies extend SC to real-time object detection with adaptive runtime control <ref type="bibr" target="#b32">[33]</ref>. A broader view of SC design choices and challenges is summarized in recent surveys <ref type="bibr" target="#b33">[34]</ref>.</p><p>While MacEdge shares the same high-level goal of optimizing latency and bandwidth via collaboration, it differs in granularity and communicated content. SC is layer-wise within a single model and transmits intermediate features whose size is cut-point dependent. In contrast, MacEdge adopts a dual-model design and performs object-level semantic offloading: only motion-aware cropped ROIs of selected hard objects are transmitted with full-frame fallback under abrupt viewpoint changes, while easy/motion-stable objects are processed locally. This semantic, object-level strategy aligns communication with task-relevant content and is complementary to layer-wise partitioning.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.">Background and Motivation</head><p>We propose a real-time video analytics framework based on client-edge collaboration, with particular emphasis on the design of dynamic offloading strategies on the client side and efficient batching mechanisms on the edge server. In the following sections, we outline the motivation and background from both the client and server perspectives.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.1.">Latency significantly affects accuracy</head><p>For real-time video analysis, optimizing latency is a key research focus. Due to network delays and GPU performance bottlenecks, it is almost impossible to offload every frame to the edge server in most scenarios. Many previous studies have attempted to offload a subset of frames and use tracking algorithms to estimate the results for the remaining frames. Because the offloading and tracking processes are Fig. <ref type="figure">2</ref>. Use the tracker output to make offloading decisions dynamically and calibrate the tracker with no delayed results.</p><p>independent, such methods only need to ensure that the execution time of the tracking algorithm is shorter than the frame interval to maintain real-time performance. However, since the detection results returned from the server are often delayed by several frames, the accuracy of these algorithms is often unsatisfactory. As shown in Fig. <ref type="figure">1</ref>, the inference result for frame n requires an interval of three frames before being returned from the edge server. By frame n+4, even if the tracker is recalibrated with the server's result, the result itself is already three frames old and may not be accurate.</p><p>We analyzed the accuracy under different frame rates and delays using videos extracted from a 120 fps source. As shown in Table <ref type="table" target="#tab_0">1</ref>, for videos at 30 or 60 fps, the most commonly used frame rates, even a single-frame delay causes rapid accuracy degradation. Although 120 fps video is less affected by a single-frame delay, its short frame interval means that more frame intervals are typically needed to retrieve results from the server. The accuracy of tracking algorithms is also significantly influenced by the precision of detection results, and errors caused by delays further compound tracking errors in subsequent frames, severely impacting overall accuracy. In non-interactive scenarios like traffic monitoring and live streaming, latency tolerance is higher, often allowing for tens of milliseconds of delay without requiring strict real-time analysis. By adopting dynamic decision-making to reduce offloaded data, transmission and inference speeds can be improved, making low-latency realtime video analysis feasible for these scenarios. 1 The negative value in Table <ref type="table" target="#tab_0">1</ref> appears because the accuracy metric is based on MOTA. Under delayed conditions, the total number of tracking errors, including false positives, false negatives, and identity switches, exceeds the total number of ground-truth targets. In low frame rate scenarios (30 fps) with a three-frame delay, the results returned from the edge server are approximately 100 ms outdated, causing the tracker to update using obsolete detection information. This leads to frequent association failures, resulting in a large increase in both false positives and false negatives. Consequently, in the MOTA formula, the numerator term (FN + FP + IDSW) surpasses the denominator (GT), yielding a negative value. </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.2.">Offloading decisions can be made dynamically for each individual detected object</head><p>Currently, most devices are equipped with NPUs, which can run lightweight models on the edge with low power consumption and perform some analytical tasks. Only a portion of the objects need to be offloaded to the server for high-precision inference. Most algorithms currently either offload the entire frame or the ROI. We have found that if the decision algorithm can precisely control offloading at the object level, it can significantly reduce network transmission delays, alleviate the server load, and improve the overall system throughput. For objects moving at a roughly constant speed, edge-side tracking algorithms can be used for reliable tracking, thus reducing the need for frequent offloading. On the other hand, objects with frequent changes in motion states should be offloaded to the server.</p><p>We designed a new workflow, as shown in Fig. <ref type="figure">2</ref>. In scenarios with relaxed real-time requirements, offloaded frames wait for server results before processing subsequent frames, alleviating accuracy degradation due to latency. The scheduler evaluates the tracking condition for each object to achieve more precise offloading decisions and reduce the volume of offloaded data. Additionally, calibrating the tracker with the latest detection results significantly improves tracking accuracy.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.3.">Model performance is influenced by frame resolution</head><p>Because the model input size is fixed, frames must be resized if their resolution exceeds the model's supported input size, often leading to a significant drop in inference accuracy. We evaluated three YOLO models with different numbers of parameters and input resolutions on 1080p video. Results in Fig. <ref type="figure" target="#fig_1">4</ref> show that even with the same number of parameters, models with different input resolutions produce significantly different inference results.</p><p>Given the wide range of resolutions from different devices, a single edge server model cannot ensure consistent input accuracy. Deploying only high-resolution models wastes resources on low-resolution requests. In our implementation, as shown in Fig. <ref type="figure" target="#fig_0">3</ref>, upon receiving client requests, the edge server stitches together sub-images of different sizes to fit the model's input size, thereby ensuring relatively consistent inference accuracy across clients. We refer to each stitched image aggregating multiple client sub-images as a canvas.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="3.4.">Batch processing can improve throughput</head><p>Previous frameworks have not fully leveraged GPU parallelism and typically serve only one client per server. As the number of clients increases, delays occur. Batch processing, in which several frames are processed together, significantly reduces the average inference time per frame compared to processing frames individually.</p><p>Using 1080p video, we compared single-frame and batch inference with a batch size of 8. As shown in Fig. <ref type="figure" target="#fig_2">5</ref>, batch processing requires roughly half the time of individual processing for the same number of frames. However, batching causes the first-arriving requests to wait longer for results. Therefore, measures must be taken to ensure fairness.</p><p>We assign each client a deadline to guarantee timely results. During sub-image stitching, we use an online binpacking algorithm, which allows the process to be interrupted at any time for immediate inference. When the server load is high, multiple large images are stitched for batch inference. Thus, our framework not only leverages batching to improve throughput but also maintains a reasonable level of fairness.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.">System Model</head><p>Based on the above considerations, we designed an Edge-Enhanced Framework for Dynamic Adaptive Offloading and Real-time Detection in Video Analytics. The system architecture is illustrated in Fig. <ref type="figure" target="#fig_3">6</ref>.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.1.">Design Goals</head><p>We will explain our design from the perspective of the client and the server. MacEdge reuses standard detection and tracking modules and focuses on system-level mechanisms for edge-device collaboration. The on-device detector and tracker, ROI cropping and encoding, network transport, and the edge-server detector follow common implementations, while our contribution lies in the coordination logic and scheduling. On the client side, the client dynamically classifies objects for offloading, constructs motion-aware ROIs with redundant-region merging, and triggers full-frame offloading with tracker reset and re-initialization when viewpoint changes invalidate cached ROIs. On the server side, the server stitches sub-images from multiple clients and  performs batch processing to improve GPU utilization and throughput while meeting tight return deadlines. In summary, our design goals are as follows:</p><p>• Maximize system throughput under limited GPU and network resources, enabling a single edge server to serve multiple terminals effectively.</p><p>• The client uses a modular design and enhances the parallelism of the modules to improve program operation efficiency.</p><p>• Offloading decisions should be made quickly and efficiently, without introducing significant extra computation or energy overhead on the client.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.2.">Client Model</head><p>The client consists of a Local Detector, Tracker, Offload Manager, and buffered message queues that interconnect these modules. The modular design enables adaptation based on device capabilities and is suitable for various scenarios.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.2.1.">Multi-Buffer Queue Design</head><p>Due to differences in frame content, offloading strategies, and system load, processing times vary significantly across different frames. Additionally, the execution times of client modules differ. Thus, inspired by the classical Producer-Consumer model, we established independent Frame Queues, Local Result Queues, and Rendering Queues.</p><p>• Frame Queue: Stores frames pending processing, accommodating varying data source transmission rates, such as real-time steady camera feeds or faster batch reads from storage devices.</p><p>• Local Inference Queue: Extracts frames from the frame queue, processes them locally, and stores results in the Local Result Queue, enabling asynchronous execution of local inference and remote offloading.</p><p>• Rendering Queue: Helps manage inconsistent processing times across frames, allowing the rendering thread to independently render frames at the desired frame rate.</p><p>In the scenario we envision, all these processes can run in different devices. For example, data acquisition through multiple cameras, and then a centralized computing device is responsible for analyzing each of these video streams to give the results. The video streams and analysis results are aggregated to a rendering device for unified rendering.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.2.2.">Dynamic Decision for Full-Frame Offloading Based on Viewpoint Changes</head><p>MacEdge operates in two complementary modes. By default, it performs object-level offloading, where only tracked objects are cropped and transmitted. When a sudden viewpoint change is detected, MacEdge temporarily switches to full-frame offloading to refresh the global scene and recover tracking. Trigger logic and priority are defined as follows. If the viewpoint-change score exceeds a threshold, full-frame offloading is triggered immediately and takes precedence over object-level offloading for that frame. When full-frame offloading is triggered, the tracker is reset by clearing all existing track states and ROI caches, and then reinitialized using the new full-frame detection results returned by the remote model. After reinitialization, MacEdge returns to Overlap Speed Detection Box Final Cropping Cropping without Merging object-level offloading in subsequent frames, using the refreshed track set and ROIs. This design ensures that fullframe offloading serves as a recovery mechanism for objectlevel offloading, preventing long-term error accumulation after viewpoint disruptions.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.2.3.">Cropped Region Segmentation</head><p>For all frames except the initial one, the cropped regions at frame 𝑡 are generated from the tracker states of frame 𝑡 -1. The client first produces one crop per offloaded object using the Kalman-filter predicted box and a velocity-aware expansion margin. The expansion is applied independently on the 𝑥 and 𝑦 axes, so fast motion along one axis only enlarges the crop on that axis, while the crop still follows the motion direction as shown in Fig. <ref type="figure" target="#fig_5">8</ref>. Next, if expanded regions overlap, the client merges them to remove redundant pixels and records how many objects are contained in each merged region. Finally, the client stores the bottom-left pixel coordinate of every final region for reconstruction on the original frame and encodes each region losslessly to preserve the original resolution for remote detection. Algorithm 1 summarizes the procedure.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.2.4.">Tracker Design</head><p>We selected the SORT due to its simplicity and realtime efficiency <ref type="bibr" target="#b18">[19]</ref>. SORT utilizes Kalman filtering and the Hungarian algorithm for tracking multiple targets efficiently. However, its ability to handle complex nonlinear motion is limited, resulting in tracking errors during prolonged occlusions or rapid movements.</p><p>The client mitigates these limitations through dynamic offloading decisions, maximizing accuracy while reducing processing load.   </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.2.5.">Tracker Update and Offloading Decision</head><p>Upon receiving remote results, the cache manager merges local and remote results according to Intersection over Union (IoU), updating the tracker accordingly. Tracker outputs feed into the rendering module and influence subsequent offloading decisions. Local results are prioritized over remote ones during full-frame offloading or when sub-region expansions significantly overlap, minimizing server load and latency. The tracker's Age and IoU attributes inform offloading decisions, categorizing objects as newly detected, difficult to track, or normally tracked, each with tailored strategies. Fig. <ref type="figure" target="#fig_9">10</ref> illustrates the conversion relationships for the three different categories of objectives.</p><p>• Newly Detected Objects: Continuously offloaded for four frames to allow Kalman filters to stabilize. If the IoU between the 4th frame prediction and the remote detection result is within the threshold range, these objects are reclassified for normal tracking.</p><p>• Hard-to-Track Objects: Continuously use remote inference results until IoU thresholds are met. Most of these targets do not have any movement rules, which makes it difficult for the tracker to output correct results, such as a turning vehicle.</p><p>• Normally Tracked Objects: Offloaded periodically to calibrate trackers and validate accuracy. If the IoU between the predicted result and the detected result is significantly different, it is determined to be a Hard-to-Track Object. If the predicted result still falls within the threshold range, it is calibrated using the remote result and the calibration is still checked at a fixed frequency.</p><p>For clarity, Fig. <ref type="figure" target="#fig_6">9</ref>(a) illustrates detected objects. Based on the Hungarian algorithm's IoU matching and the tracker's Age attribute, objects scheduled for offloading are identified. Assuming a forced offloading interval of four frames as in Fig. <ref type="figure" target="#fig_6">9</ref>(b), normal objects not offloaded in the previous frame result in tracker mismatches, with updates occurring at intervals of 2 and 4 frames prior. Object A lacks tracker matches and is deemed new, while objects B and D match successfully with high IoU, categorized as normal tracking. Objects C and E have low IoU matches and are categorized as difficult-to-track. </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.3.">Server Model</head><p>The server handles multiple simultaneous client requests. It can stitch images into batches for batch inference, optimizing throughput.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.3.1.">Multi-Client Stitching and Coordinate Mapping</head><p>In a multi-client scenario, servers pack sub-images from all clients into shared canvases, rather than allocating a separate canvas per client. This approach avoids batch imbalance caused by varying numbers of sub-images from different clients. Each sub-image is assigned a unique identifier, ensuring correct association of inference results.</p><p>To maintain Algorithm 1 Client-side Cropped Region Segmentation Input: Offloaded object set: 𝑂 ; Image size: 𝑊 , 𝐻 Predicted box for each object: B[𝑖] Velocity components for each object: 𝑈 𝑥 [𝑖], 𝑈 𝑦 [𝑖] Cropping parameters: 𝑚 𝑥0 , 𝑚 𝑦0 , 𝑘 𝑥 , 𝑘 𝑦 , 𝑚 min , 𝑚 max Merging threshold: 𝜏 Output: Final crops: 𝐶 ; Bottom-left positions: 𝑃 Merged object counts: 𝑁 ; Member sets: 𝑀 Initialization: Initialize disjoint-set 𝐷 over 𝑂 Initialize map 𝑅 over 𝑂 Phase 1: Dynamic Cropping for all 𝑖 ∈ 𝑂 do 𝑚 𝑥 ← clip(𝑚 𝑥0 + 𝑘 𝑥 ⋅ |𝑈 𝑥 [𝑖]|, 𝑚 min , 𝑚 max ) 𝑚 𝑦 ← clip(𝑚 𝑦0 + 𝑘 𝑦 ⋅ |𝑈 𝑦 [𝑖]|, 𝑚 min , 𝑚 max ) 𝑅[𝑖] ← Clip ( ExpandXY( B[𝑖], 𝑚 𝑥 , 𝑚 𝑦 ), 𝑊 , 𝐻 ) end for Phase 2: Redundancy Merging for all 𝑖, 𝑗 ∈ 𝑂 such that 𝑖 &lt; 𝑗 do if IoU(𝑅[𝑖], 𝑅[𝑗]) ≥ 𝜏 then Union(𝐷, 𝑖, 𝑗) end if end for Phase 3: Position Mapping and Image Encoding 𝐶 ← ∅, 𝑃 ← ∅, 𝑁 ← ∅, 𝑀 ← ∅ for all 𝐺 ∈ Groups(𝐷) do 𝑟 ← UnionBox ( {𝑅[𝑖] | 𝑖 ∈ 𝐺} ) 𝐶 ← 𝐶 ∪ {𝑟} ; 𝑃 ← 𝑃 ∪ {BottomLef t(𝑟)} 𝑁 ← 𝑁 ∪ {|𝐺|} ; 𝑀 ← 𝑀 ∪ {𝐺} end for atomicity, if a client's sub-images cannot be fully included in the current batch, the entire set is deferred to the next batch. The full process is summarized in Algorithm 2.</p><p>We define three coordinate systems: (1) the full-frame 𝐹 ⊂ ℝ 2 (resolution 𝑊 × 𝐻), (2) client-cropped sub-images 𝑆 𝑗 , and (3) server-side canvases 𝐶 𝑘 . Each 𝑆 𝑗 is a crop of 𝐹 at offset 𝐨 𝑗 = (𝑜 𝑥,𝑗 , 𝑜 𝑦,𝑗 ) ⊤ and is placed in canvas 𝐶 𝑘 at offset 𝐬 𝑗 = (𝑠 𝑥,𝑗 , 𝑠 𝑦,𝑗 ) ⊤ . The coordinate mapping is a composition of two translations:</p><formula xml:id="formula_0">𝐩 𝑆 𝑗 = 𝑇 -𝐨 𝑗 𝐩 𝐹 (<label>1</label></formula><formula xml:id="formula_1">)</formula><formula xml:id="formula_2">𝐩 𝐶 𝑘 = 𝑇 𝐬 𝑗 𝐩 𝑆 𝑗 (<label>2</label></formula><formula xml:id="formula_3">)</formula><p>where 𝑇 𝐚 denotes translation by 𝐚. Thus,</p><formula xml:id="formula_4">𝐩 𝐶 𝑘 = 𝑇 𝐬 𝑗 -𝐨 𝑗 𝐩 𝐹 (<label>3</label></formula><formula xml:id="formula_5">)</formula><p>As only translations are involved, detection box sizes are invariant. After inference, detected boxes ̂𝐛𝐶 𝑘 are mapped back by reversing the translations:</p><p>(𝑥 𝐹 , 𝑦 𝐹 ) = (𝑥 𝐶 𝑘 -𝑠 𝑥,𝑗 + 𝑜 𝑥,𝑗 , 𝑦 𝐶 𝑘 -𝑠 𝑦,𝑗 + 𝑜 𝑦,𝑗 ) (4) Unlike offline packing, it does not need to wait for all transfers to complete.</p><note type="other">Decode Inference Decode Inference Decode Inference Decode Offline Pack Inference Decode Pack Inference Decode Decode Decode Decode Decode Decode Decode Inference Decode Offline Pack Inference Online Pack Base pipeline Dynamic Packing Pipeline</note></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="4.3.2.">Batch Processing and Parallel Computing</head><p>Traditional batch inference pipelines often employ offline packing algorithms, where all incoming sub-images are decoded and collected before being packed into canvases for inference. If the total number of sub-images exceeds the batch size limit, multiple inference rounds are required, resulting in increased overall latency.</p><p>To address this, we adopt an online dynamic packing algorithm that does not wait for all sub-images to arrive. As shown in Fig. <ref type="figure" target="#fig_11">11</ref>, the online approach favors immediate responsiveness over optimal packing efficiency. Inference is triggered as soon as a canvas is full or when specified deadline conditions are met, reducing wait times compared to offline methods.</p><p>Clients specify their maximum tolerable wait times with each upload, reflecting the urgency of their tasks (e.g., a client processing 120 FPS video requires lower latency than one at 30 FPS). The server monitors these deadlines and initiates inference immediately when either a canvas is full or any sub-image approaches its deadline, ensuring timely processing for all clients.</p><p>Because the sub-images are of approximately uniform size, the server can reliably estimate both packing and inference durations for each canvas. Leveraging these estimates, we design a batch scheduling algorithm that guarantees the earliest deadline is always met, as detailed in Algorithm 3.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.">Implementation</head><p>In this section, we introduce implementation details of the system, including model selection and specific implementation details.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.1.">Edge Server Implementation</head></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.1.1.">Large Detection Model on Edge</head><p>We selected a YOLO 11m model with an input size of 640×640, pretrained on the VisDrone dataset, and converted to the TensorRT format <ref type="bibr" target="#b34">[35,</ref><ref type="bibr" target="#b35">36]</ref>. The maximum canvas batch size was set to 8 for batch inference.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.1.2.">Inference Data Processing</head><p>Each client is assigned a unique identifier upon connection. All client requests are enqueued into a shared task queue, with read-write locks ensuring atomic batch operations. Upon dequeuing, image data are decoded and packed into canvases using a simple online packing strategy. Specifically, we employ the Next Fit algorithm for its efficiency, noting that optimal online 2D bin-packing is outside the scope of this work. For scenarios with highly variable subimage counts and sizes, more sophisticated online algorithms could be adopted to further increase throughput. A 2-pixel gap is reserved between adjacent sub-images during packing to prevent edge interference in detection.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.1.3.">Inference Result Processing and Distribution</head><p>During inference, the number of objects detected in a packed sub-image may exceed expectations. In such cases, we first filter out low-confidence detections. We then match detections based on object size similarity (with a threshold of 80% for size matching) and spatial proximity, preferentially pairing detections of similar size. From these candidates, we select the final detection results based on the minimum distance to avoid duplicates. Each client is allocated an independent result queue, which accommodates differences in network speed and latency by buffering results before sending them back to the respective client.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.2.">Client Implementation</head></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.2.1.">Local Tracker Implementation</head><p>We used C language to implement a local tracker based on the SORT algorithm <ref type="bibr" target="#b18">[19]</ref>. The Hungarian algorithm for assignment was adapted from an open-source C++ implementation originally derived from a MATLAB library, and the Kalman filter was implemented using the GSL library. Memory management for the tracker is handled in a C program, and we provide interfaces for interaction via both Python and Swift. This ensures that the tracker can be used on both desktop and mobile clients.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head>Algorithm 2 End-Edge Collaborative Inference</head><p>Input: Full-frame image 𝐹 ∈ ℝ</p><p>𝑊 ×𝐻 Output: Final detections  on 𝐹 1. Client: a. Determine crop boxes {𝐨 𝑗 , 𝑤 𝑗 , ℎ 𝑗 }. (𝐨 𝑗 = (𝑜 𝑥,𝑗 , 𝑜 𝑦,𝑗 ): crop origin; 𝑤 𝑗 , ℎ 𝑗 : width/height) b. For each 𝑗: 𝑆 𝑗 ← crop 𝐹 at offset 𝐨 𝑗 with size (𝑤 𝑗 , ℎ 𝑗 ) Send (𝑆 𝑗 , 𝐨 𝑗 ) to server. 2. Server: a. Tile 𝑆 𝑗 into canvases {𝐶 𝑘 } at offsets 𝐬 𝑗 . b. For each canvas 𝐶 𝑘 : 𝐷 𝑘 ← run detector on 𝐶 𝑘 For each detection 𝑑 ∈ 𝐷 𝑘 with box (𝑥 𝐶 𝑘 , 𝑦 𝐶 𝑘 , 𝑤, ℎ): Identify 𝑗 such that (𝑥 𝐶 𝑘 , 𝑦 𝐶 𝑘 ) falls in 𝑆 𝑗 region. 𝑥 𝑆 ← 𝑥 𝐶 𝑘 -𝑠 𝑥,𝑗 , 𝑦 𝑆 ← 𝑦 𝐶 𝑘 -𝑠 𝑦,𝑗 Emit record 𝑟 = (𝑗, 𝑥 𝑆 , 𝑦 𝑆 , 𝑤, ℎ, score, class) c. Send all records to client. 3. Client: a. For each record 𝑟 = (𝑗, 𝑥 𝑆 , 𝑦 𝑆 , 𝑤, ℎ, 𝑠, 𝑐): 𝑥 𝐹 ← 𝑥 𝑆 + 𝑜 𝑥,𝑗 , 𝑦 𝐹 ← 𝑦 𝑆 + 𝑜 𝑦,𝑗 Add (𝑥 𝐹 , 𝑦 𝐹 , 𝑤, ℎ, 𝑠, 𝑐) to final set  b. Return  Algorithm 3 Batch inference with guaranteed shortest deadline Input: Canvas size: {𝐻, 𝑊 } Max canvases per inference round: 𝐿 Packing-time estimator: 𝑡 𝑝𝑎𝑐𝑘 Inference-time estimator: 𝑡 𝑖𝑛𝑓 Decoded sub-images (ordered by deadline) queue: 𝑄 Output: Inference results Initialization: openCanvas ← new empty canvas readySet ← ∅ while True do if 𝑄 empty then continue end if 𝑟 ← 𝑄.pop() if 𝑟 not fit openCanvas then readySet ← readySet ∪ {openCanvas} openCanvas ← new empty canvas end if place 𝑟 into openCanvas 𝜏 ← min(deadlines in openCanvas ∪ readySet) -now() remain ← 𝑡 𝑝𝑎𝑐𝑘 + 𝑡 𝑖𝑛𝑓 urgent ← (𝜏 ≤ remain) full ← (|readySet| + 1 == 𝐿) if urgent or full then readySet ← readySet ∪ {openCanvas} INFERENCE(readySet) // Start Inference Process openCanvas ← new empty canvas readySet ← ∅ end if end while</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.2.2.">Small Detection Model on Local</head><p>For on-device inference, we employed a YOLO 11n model with an input size of 640×640, also pretrained on the VisDrone dataset. The model was quantized to INT8 precision to reduce computational load on client devices. On our Swift-based iOS client, we use the Core ML framework for local inference, while the Python-based client uses the TensorRT engine.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="5.2.3.">Network Communication</head><p>We adopted a socket-based communication protocol between the client and server, utilizing persistent connections to minimize the overhead of repeatedly establishing new connections. Each offloaded image (or sub-image) is first encoded in Base64 format using OpenCV, and then packaged together with its metadata into a JSON payload for transmission. This approach ensures uniform data formatting and reduces transmission latency.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.">Evaluation</head><p>In this section, we present the experimental setup, including dataset selection, evaluation metrics, and comparison methods.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.1.">Experiment Setup</head></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.1.1.">Dataset</head><p>We evaluate the offloading strategy on VisDrone and UAV Benchmark M. VisDrone provides human-annotated bounding boxes, and we report accuracy against these annotations. UAV Benchmark M has no manual labels, so we use the edge-server model outputs as the reference and measure the accuracy degradation of the offloaded pipeline relative to the original remote model under the same reference. To study different frame rates, we interpolate the 30 FPS videos to 60 FPS and 120 FPS using Super-SloMo <ref type="bibr" target="#b36">[37]</ref> and generate the reference outputs for each frame rate accordingly.</p><p>For validating the full-frame decision strategy, we record synchronized video and gyroscope signals using an iOS tool we developed. We captured a 30-second video at 720p and 30 FPS with abrupt viewpoint changes.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.1.2.">Comparative Methods</head><p>We compare our approach with several representative baselines and ablations, including local-only inference, ROI encoding, and variants of our proposed method. For fair comparison, all methods adopt consistent offloading intervals and experimental settings.</p><p>• Local Only: All inference is performed on the local device, with no data uploaded to the edge server.</p><p>• ROI Encoding: Following the EAR method and other related research <ref type="bibr" target="#b6">[7,</ref><ref type="bibr" target="#b8">9,</ref><ref type="bibr" target="#b37">38]</ref>, each frame is partitioned into ROIs and non-interest regions based on the previous frame's detections. ROIs are transmitted with high quality, while the rest are heavily compressed, reducing transmission bandwidth. Tracker calibration is ensured by consecutively offloading two ROI-encoded frames and periodically offloading an uncompressed full-frame image to avoid tracking drift and capture new objects. Based on AccMPEG's research, we selected H.265 as the encoding method <ref type="bibr" target="#b24">[25]</ref>.</p><p>• Edge Only: Our offloading and cropping pipeline is applied to every frame, using prior detection results for cropping, but without any dynamic or trackingbased decisions. All detected objects are always offloaded to the server.</p><p>• No Local: Local inference is disabled in our pipeline, simulating low-performance or power-constrained devices. All detection is performed remotely, to evaluate end-to-end accuracy and latency.</p><p>• No Tracker: This solution does not introduce a tracking algorithm, so it cannot provide dynamic perception data, and the tracked object will be offloaded in each frame.</p><p>For all methods, the offloading intervals (including the ROI and full-frame intervals for ROI encoding) are set consistent with our proposed approach to ensure comparability.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.1.3.">Experimental Parameters</head><p>The experimental parameters we set are as follows. For some parameters not mentioned, please refer to our open source code. We set these parameters based on experience, but there is still room for optimization and adjustment based on the common application and requirements.</p><p>• Local and edge detection confidence threshold: 0.75. Detections below this threshold are discarded but may still be detected by the edge server.</p><p>• Local-remote result IoU merge threshold: 0.8. If two results have an IoU greater than 0.8, they are considered the same object, with priority given to local inference results to reduce server load.</p><p>• Local inference interval: Based on Core ML inference time on iPhone, for 30 FPS and 60 FPS videos, local inference time is less than the frame interval, so inference is performed every frame. For 120 FPS, local inference time exceeds the frame interval, so inference is performed every other frame, using tracking to predict results for intermediate frames.</p><p>• Tracker parameters: IoU threshold for association during the matching stage is set to 0.5. Different maximum tracker age values are set to accommodate differences in object speed and detection update frequency at different frame rates. For 30 FPS and 60 FPS, a tracker is deleted if it fails to be updated for 5 consecutive frames. For 120 FPS, the threshold is extended to 10 frames to avoid prematurely discarding valid trackers at high frame rates.</p><p>• Motion intensity threshold: 15. The motion-intensity estimator outputs a score in real time.</p><p>• Edge forced-offloading interval: A strategy to forcibly offload common objects for calibration and status assessment. Set to every 4 frames for 30 FPS and 60 FPS, and every 8 frames for 120 FPS.</p><p>• Initial sub-image cropping size: The length and width are both expanded to twice the original detection result.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.1.4.">Experimental Environment</head><p>We chose several different types of devices for experiments, all being typical consumer-grade products to reflect the method's performance on diverse devices.</p><p>• Edge Server: AMD Ryzen 5 9600X, NVIDIA RTX 4060 Ti (16GB), 32GB RAM, running Linux Mint 22 with Python 3.12.</p><p>• Client: The Wi-Fi network environment experiment was conducted using a single PC with the following configuration: Intel i3-12100F, NVIDIA RTX 4060, 32GB RAM, running Debian 12 with Python 3.12. This was used for collecting baseline data. The experiment in a 5G cellular network environment was conducted using an iPhone 15 Pro running iOS 18.</p><p>• Network: Devices connected through a Redmi AX1800 router. The edge server used a 1 Gbps Ethernet link; other devices connected via 2.4 GHz or 5 GHz Wi-Fi. Network bandwidth was controlled using Linux tc to simulate various conditions.</p><p>For multi-device tests, to control variables, we collected offloading logs and content under different conditions using the above client, and simulated sending from 3 Raspberry Pi 5 and 3 Raspberry Pi 4B. All devices are connected to the local network via appropriate Wi-Fi bands to simulate channel occupancy. The final data was collected from a real client, reflecting the performance of one device under resource competition. Due to limited actual devices, in cases of higher simulated device counts, a Raspberry Pi 5 simulated two devices. For the experiment validating the viewpoint change module, data was collected from an iPhone 15 Pro, which can provide real-time pose data to the program.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.2.">Evaluation Metrics</head><p>We use the following metrics to assess system performance:</p><p>• Accuracy: Evaluates detection performance. Our accuracy calculation method follows that of MOTA, considering both missed detections and false positives. The IoU threshold is set to 0.75.</p><p>• End-to-end latency: Since rendering, local detection, and remote detection are performed on parallel threads, we report the latency of edge server detection, which dominates overall system performance in most scenarios.</p><p>• Number of packages: The average number of packages sent per video, used to measure the impact of the tracking algorithm on decision-making.</p><p>• Total package size: The total size of data offloaded to the edge server.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.3.">Performance Overview</head><p>Fig. <ref type="figure">12</ref> shows an example output of MacEdge. The two objects on the left are newly detected targets. Because they have been observed for fewer than four frames, they are continuously offloaded to allow the tracker to stabilize. The object in the lower left corner is turning, and it is difficult for the tracker to predict its next frame result, so it is calibrated. The object on the right is offloaded at regular intervals.</p><p>As illustrated in Fig. <ref type="figure" target="#fig_0">13</ref>, across different frame rates, single-object offloading methods consistently outperform both local-only inference and real-time ROI encoding in terms of accuracy, regardless of the local backend or whether tracking is enabled. Compared to local inference, MacEdge improves accuracy by over 100% at all frame rates. Compared to ROI offloading, the gains are 79.8%, 34.9%, and 137.3% at 30 FPS, 60 FPS, and 120 FPS, respectively. Notably, ROI encoding degrades sharply at 120 FPS, where false positives increase significantly. With shorter interframe intervals, motion cues become weaker and the tracker must extrapolate more aggressively, which amplifies ROI misalignment and error accumulation, ultimately harming detection reliability. In contrast, MacEdge maintains accuracy close to the edge-server baseline across frame rates, indicating that dynamic offloading introduces little additional error.</p><p>Fig. <ref type="figure" target="#fig_1">14</ref> further validates this conclusion on VisDrone. The left part reports accuracy against human annotations, reflecting absolute detection quality, while the right part reports accuracy against the teacher outputs from the remote edge-server model, which isolates the accuracy loss induced by offloading decisions. Under both evaluation protocols, MacEdge consistently achieves the best accuracy and remains the closest to the remote baseline across frame rates, whereas ROI shows a widening gap at high FPS, consistent with the observed increase in false positives.</p><p>In terms of latency, as shown in Fig. <ref type="figure" target="#fig_2">15</ref>, MacEdge achieves the lowest end-to-end delay at all frame rates under all three network settings, and its average latency always remains below the corresponding frame interval, ensuring outputs can be produced at the target FPS. Compared to Edge Only, MacEdge reduces latency by 39.8%, 49.9%, and 70.2% in the 2.4 GHz Wi-Fi environment, and by 32.9%, 53.0%, and 65.1% in the 5 GHz Wi-Fi environment at three frame rates, respectively. Under the 5G cellular network, the corresponding reductions are 17.5%, 33.3%, and 38.8% at different frame rates, indicating that MacEdge remains effective even when cellular links introduce higher and more variable transmission delay. In contrast, without local inference, the larger offloaded payload leads to higher latency than MacEdge, for example, at 60 FPS, Edge Only is 22.1%, Fig. <ref type="figure">12</ref>. An example of the results output by the MacEdge framework. The green part is the local model detection part, the yellow part is the result of the local tracker, and the red part is the result of the offload part. The overlap of yellow and red in the lower left corner indicates that the tracker is being calibrated. L o c a l R O I N o T r a c k e r E d g e O n ly M a c E d g e 0.0 0.2 0.4 0.6 Accuracy 30FPS L o c a l R O I N o T r a c k e r E d g e O n ly M a c E d g e 0.0 0.2 0.4 0.6 Accuracy 60FPS L o c a l R O I N o T r a c k e r E d g e O n ly M a c E d g e 0.0 0.2 0.4 0.6 Accuracy 120FPS GT Teacher Fig. 14. Accuracy of different methods on the VisDrone dataset. R O I N o T r a c k e r E d g e O n ly M a c E d g e 0 10 20 30 40 Latency (ms) 30FPS R O I N o T r a c k e r E d g e O n ly M a c E d g e 0 10 20 30 40 Latency (ms) 60FPS R O I N o T r a c k e r E d g e O n ly M a c E d g e 0 10 20 30 40 Latency (ms) 120FPS 2.4G Wi-Fi 5G Cellular 5G Wi-Fi Fig. 15. Average end-to-end delay for different methods at different frame rates. Local (32.5%) Edge (20.5%) Tracking (47.0%) Fig. 16. In the M0203 video (120FPS), the proportion of detection results from different sources. Remote detection results account for only about one-fifth, and nearly half of the results come from trackers.</p><p>27.2%, and 50.0% higher than MacEdge under 2.4 GHz Wi-Fi, 5 GHz Wi-Fi, and 5G cellular, respectively. An analysis of total package size and package count shown in Fig. <ref type="figure" target="#fig_13">17</ref> can further explain these results. Compared to the ROI method, the dynamic offloading scheme, with its finer granularity, adopts a strategy of more frequent, smaller offloads, meaning that it frequently offloads poorly tracked objects. In contrast, ROI's frame-based offloading incurs much higher transmission and inference costs per event. Given comparable latency requirements, tracker calibration is much less frequent with the ROI method.</p><p>These results also explain why, for high frame-rate videos, dynamic offloading yields lower latency without a significant drop in accuracy. For 30 FPS videos, edge only inference offloaded 1028 packages (consistent with the frame rate, as every frame was offloaded), while MacEdge offloaded only 828 packages, meaning about one fifth of frames had no objects to offload. For 120 FPS, pure edgeside inference offloaded 4092 packages, while MacEdge offloaded just 1866 times. More than half the frames required no offloading, as local tracking results were sufficient, resulting in zero remote inference latency for those frames. Notably, total offload count increased with the dynamic method, but overall data size decreased. Besides parameter differences, another reason is that frame-to-frame changes are smaller at high FPS, reducing the likelihood of triggering full-frame offloading, which usually contributes more to data size and cost. For example, for video M0203 in the dataset, at 30 FPS, full-frame offloading occurred 63 times; at 120 FPS, only 37 times. As shown in Fig. <ref type="figure" target="#fig_3">16</ref>, in the case of 120 frames, most of the detection results come from local, and the proportion of remote results in all results is very small. This means that the tracker's estimation is valid for most targets.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.4.">Impact of different device counts and network bandwidth</head><p>We also analyzed system latency under varying numbers of devices and different network bandwidths using 60 FPS videos. To avoid inaccuracies from frequent video switching on the client, only videos longer than 30 seconds were used.</p><p>Since ROI encoding was not designed for batch processing and significantly lags behind other methods, it was excluded from multi-device latency comparisons. With three concurrent devices, its latency already exceeds 40 ms. Therefore, we did not put its delay into the Fig. <ref type="figure" target="#fig_5">18</ref>. The number of devices mainly affects the latency of the inference phase. Too many requests cause requests to be blocked in the queue and need to be processed in a queue. From the experimental results, we can see that when we adjust the size of the canvas to twice the original size, the latency has dropped significantly. We also updated the size of the model, and the final accuracy has only a slight difference. This shows that when the number of requests is huge, our method can quickly improve its throughput by simply increasing the model size.</p><p>Network bandwidth primarily affects end-to-end latency at the transmission layer. Experimental results show that bandwidth requirements scale with offloaded data size. ROI encoding, which is not shown in the Fig. <ref type="figure" target="#fig_14">19</ref>, reaches a latency of 845 ms at just 10 Mbps. From Fig. <ref type="figure" target="#fig_15">20</ref>, we can see that the package size of the ROI method is much larger than that of the other three methods, which leads to very poor performance under limited bandwidth. The latency comparison of the other three methods is basically consistent with the amount of data they offload. In this scenario, our method can meet the latency requirements under a bandwidth of 40 Mbps and the amount of data offloaded is also the least. </p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.5.">Design benefit analysis of different modules 6.5.1. Percentage of running time for different modules</head><p>Fig. <ref type="figure" target="#fig_16">21</ref> shows that the main components of the overall runtime are local detection, offloading (including merging, Fig. <ref type="figure" target="#fig_5">18</ref>. Differences in latency performance for different numbers of devices, where MacEdge gives two different canvas sizes, using the model corresponding to the input size for inference.   encoding, and remote detection), and rendering. Since these modules are decoupled and designed to run in parallel, the system still meets real-time inference requirements, even though the total running time across all modules exceeds the delay requirement. This demonstrates the necessity of decoupling and parallelizing different tasks for real-time analysis. Additionally, our tracking algorithm is highly efficient, taking less than 1 ms and having negligible impact on performance, which makes per-frame operation feasible.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.5.2.">Impact of Dynamic Cropping</head><p>We evaluated the effect of the dynamic cropping module by setting the crop size to a fixed value of twice the width and height of the original detection box. As shown in Table <ref type="table" target="#tab_1">2</ref>, the offloading strategy using fixed-size cropping performed worse in all respects. Dynamic cropping improved accuracy by 2.6%, while reducing total data size and end-to-end latency by 25.6% and 22.49%, respectively. We found that this reduction in offloaded data is mainly due to stationary or uniformly moving objects, for which the dynamically determined cropping size is significantly smaller than that in the fixed cropping strategy. For fast-moving objects, using a   larger cropping window can help reduce the missed detection rate.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="6.5.3.">Content-Based Full-Frame Offloading Decision</head><p>To evaluate the benefit of our approach, we removed the dynamic full-frame offloading module and used only a fixed full-frame offloading strategy as a baseline. For the dynamic method, decisions were based on gyroscope data provided by the iOS CoreMotion library, and the output of our motion intensity evaluation program was also used for validation. As shown in Fig. <ref type="figure" target="#fig_17">22</ref> and Fig. <ref type="figure" target="#fig_18">23</ref>, when the set threshold was exceeded, our scheduler actively initiated offloading to overcome tracking difficulties caused by camera motion, resulting in overall accuracy that consistently outperformed fixed-interval offloading strategies. It can be seen from the offloaded package size in Fig. <ref type="figure" target="#fig_17">22</ref> that after removing the decision module for viewpoint change, even though the accuracy is severely reduced, the package size did not change at all. This is because the sudden change in viewpoint makes almost all trackers invalid and unable to work normally as expected. Even if the specified area is cropped for offloading, the target cannot be detected.</p></div>
+<div xmlns="http://www.tei-c.org/ns/1.0"><head n="7.">Conclusion</head><p>In this paper, we propose MacEdge, a real-time video analytics framework that leverages tracking algorithms to optimize offloading decisions and enhances edge server throughput through sub-image stitching. The modular design of the framework makes it suitable for deployment across a wide range of devices and application scenarios. Experimental results on the UAV Benchmark M demonstrate that, compared to fully local inference, MacEdge achieves more than a 100% improvement in accuracy, while maintaining accuracy comparable to full edge-side inference. With the integration of a local inference module, MacEdge also meets inference latency requirements across different resolutions and network environments, demonstrating its practicality for real-time video analytics on edge devices.</p><p>The proposed method also holds significant potential for future extension. It can be adapted to support a wide range of real-time video analytics tasks beyond object detection, including target segmentation, depth estimation, and other complex scenarios. Owing to its lightweight design and low resource consumption, the framework is well suited for deployment on diverse edge devices such as UAVs, surveillance cameras, and augmented reality platforms. This flexibility further underscores the practicality and scalability of MacEdge in real-world applications.</p></div><figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_0"><head>Fig. 3 .</head><label>3</label><figDesc>Fig.3. After different clients send requests, the edge server packages the requests for aggregation and batch inference.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_1"><head>Fig. 4 .</head><label>4</label><figDesc>Fig. 4. Impact of Model Parameter Count and Input Size on Accuracy.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_2"><head>Fig. 5 .</head><label>5</label><figDesc>Fig.5. Time consumed by individual inference vs. batch processing.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_3"><head>Fig. 6 .</head><label>6</label><figDesc>Fig. 6. An overview of MacEdge, divided into two parts: Server and Client. Client contains 3 Message Queues, an Optional Local Detector module, Offload Manager and Tracker. Server receives requests from multiple clients, batch-processes them, and then distributes them.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_4"><head>Fig. 7 .</head><label>7</label><figDesc>Fig. 7. Comparison of our designed program based on optical flow detection with changes in angular velocity.</figDesc><graphic coords="7,75.10,580.11,116.02,61.16" type="bitmap" /></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_5"><head>Fig. 8 .</head><label>8</label><figDesc>Fig.8. Schematic diagram of the cropping scheme. In one case, the two cropping areas overlap a lot, so they are combined into one diagram, and in the other case, the cropping size and bias are determined according to the moving speed of the target.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_6"><head>Fig. 9 .</head><label>9</label><figDesc>Fig.9. Example of the offloading process for 2 consecutive frames. The detection results are labeled with the target number and the age of the tracker is labeled in the tracker. Figurearepresents the results received from the remote server. Figurebrepresents the matching results of the Hungarian algorithm and uses the matching results to categorize the detection results. Figurecrepresents the offloading decision based on the policy. New targets, targets that are difficult to track and targets that reach the age threshold are cropped into sub-images. Figuresd and eillustrate the offloading decision process for the next frame.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_7"><figDesc>Fig.9. Example of the offloading process for 2 consecutive frames. The detection results are labeled with the target number and the age of the tracker is labeled in the tracker. Figurearepresents the results received from the remote server. Figurebrepresents the matching results of the Hungarian algorithm and uses the matching results to categorize the detection results. Figurecrepresents the offloading decision based on the policy. New targets, targets that are difficult to track and targets that reach the age threshold are cropped into sub-images. Figuresd and eillustrate the offloading decision process for the next frame.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_8"><figDesc>Fig.9. Example of the offloading process for 2 consecutive frames. The detection results are labeled with the target number and the age of the tracker is labeled in the tracker. Figurearepresents the results received from the remote server. Figurebrepresents the matching results of the Hungarian algorithm and uses the matching results to categorize the detection results. Figurecrepresents the offloading decision based on the policy. New targets, targets that are difficult to track and targets that reach the age threshold are cropped into sub-images. Figuresd and eillustrate the offloading decision process for the next frame.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_9"><head>Fig. 10 .</head><label>10</label><figDesc>Fig.10. Transition relationships between different categories of objects.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_10"><head>Fig. 9 (</head><label>9</label><figDesc>c) shows cropping based on Kalman filter velocities. Fig. 9(d) presents new detections, and Fig. 9(e) indicates updated tracker timestamps for B and D. Object A's tracker, newly initialized, cannot predict movement, whereas object E's non-uniform motion hampers accurate prediction. Finally, Fig. 9(f) highlights new offloading decisions for new object A and difficult-to-track object E.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_11"><head>Fig. 11 .</head><label>11</label><figDesc>Fig.11. Real-time inference with an online packing algorithm. Unlike offline packing, it does not need to wait for all transfers to complete.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_12"><head>Fig. 13 .Fig. 14 .Fig. 15 .Fig. 16 .</head><label>13141516</label><figDesc>Fig. 13. Accuracy of different methods on the UAV Benchmark M.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_13"><head>Fig. 17 .</head><label>17</label><figDesc>Fig. 17. Package size (left) and average number of packages (right) when analyzing a single video at different frame rates for different methods.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_14"><head>Fig. 19 .</head><label>19</label><figDesc>Fig.<ref type="bibr" target="#b18">19</ref>. Performance of latency at different bandwidths, the latency of ROI coding is too high and is not shown for comparison in the figure.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_15"><head>Fig. 20 .</head><label>20</label><figDesc>Fig. 20. Differences in package size and number between methods in bandwidth limiting experiments.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_16"><head>Fig. 21 .</head><label>21</label><figDesc>Fig. 21. Running time of different modules of the system, where local detection, offloading process and rendering can be executed in parallel.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_17"><head>Fig. 22 .</head><label>22</label><figDesc>Fig. 22. Changes in the magnitude of viewpoint change (green) and accuracy (red and blue) over a range of frame intervals for a segment of moving viewpoints, with blue indicating a fixed offloading strategy and red indicating a dynamic offloading strategy based on the magnitude of viewpoint change.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" xml:id="fig_18"><head>Fig. 23 .</head><label>23</label><figDesc>Fig.<ref type="bibr" target="#b22">23</ref>. The size of the offloaded package within the frame interval of a moving view can reflect the aggressiveness of offload scheduling.</figDesc></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_0"><head>Table 1</head><label>1</label><figDesc>Impact of inference latency on detection accuracy at different frame rates.</figDesc><table><row><cell cols="2">Frame</cell><cell cols="2">1 Frame</cell><cell>2 Frame</cell><cell>3 Frame</cell></row><row><cell>Rate</cell><cell></cell><cell>Delay</cell><cell></cell><cell>Delay</cell><cell>Delay</cell></row><row><cell>30</cell><cell></cell><cell cols="2">0.6204</cell><cell>0.1621</cell><cell>-0.1727 1</cell></row><row><cell>60</cell><cell></cell><cell cols="2">0.8407</cell><cell>0.6707</cell><cell>0.4059</cell></row><row><cell>120</cell><cell></cell><cell cols="2">0.9103</cell><cell>0.8574</cell><cell>0.7776</cell></row><row><cell>Frame ID</cell><cell>n</cell><cell cols="3">n+1 n+2 n+3 n+4</cell><cell>n+5 n+6 n+7</cell></row><row><cell>Client</cell><cell></cell><cell></cell><cell></cell><cell></cell></row><row><cell></cell><cell></cell><cell>30ms</cell><cell>2ms</cell><cell>2ms 2ms</cell><cell>24ms</cell><cell>2ms 2ms</cell></row><row><cell>Server</cell><cell></cell><cell></cell><cell></cell><cell></cell></row><row><cell></cell><cell></cell><cell>Frame Transport</cell><cell cols="2">Results Transport</cell><cell>Inference</cell><cell>Track</cell></row></table></figure>
+<figure xmlns="http://www.tei-c.org/ns/1.0" type="table" xml:id="tab_1"><head>Table 2</head><label>2</label><figDesc>Impact of different cropping methods on the integrated performance of the system</figDesc><table><row><cell></cell><cell>Fixed</cell><cell>Dynamic</cell></row><row><cell></cell><cell>Cropping</cell><cell>Cropping</cell></row><row><cell>Package Size (MB)</cell><cell>5.23</cell><cell>3.89</cell></row><row><cell>End to End Latency (ms)</cell><cell>7.988</cell><cell>6.191</cell></row><row><cell>Accuracy</cell><cell>0.3855</cell><cell>0.3958</cell></row></table></figure>
+		</body>
+		<back>
+			<div type="references">
+
+				<listBibl>
+
+<biblStruct status="extracted" xml:id="b0">
+	<analytic>
+		<title level="a" type="main">Integration of blockchain and edge computing in internet of things: A survey</title>
+		<author>
+			<persName><forename type="first">He</forename><surname>Xue</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Dajiang</forename><surname>Chen</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Ning</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Hong-Ning</forename><surname>Dai</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Keping</forename><surname>Yu</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Future Generation Computer Systems</title>
+		<imprint>
+			<biblScope unit="volume">144</biblScope>
+			<biblScope unit="page" from="307" to="326" />
+			<date type="published" when="2023">2023</date>
+		</imprint>
+	</monogr>
+	<note type="raw_reference">He Xue, Dajiang Chen, Ning Zhang, Hong-Ning Dai, and Keping Yu. Integration of blockchain and edge computing in internet of things: A survey. Future Generation Computer Systems, 144:307-326, 2023.</note>
+</biblStruct>
+
+<biblStruct status="extracted" xml:id="b1">
+	<analytic>
+		<title level="a" type="main">Aishna Shrivastava, and Esha Jain. Hs-giov: High-speed green internet of vehicles (iov) edge-assisted model for low-latency inference in autonomous driving</title>
+		<author>
+			<persName><forename type="first">Oshin</forename><surname>Rawlley</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Shashank</forename><surname>Gupta</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Kashish</forename><surname>Mahajan</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Future Generation Computer Systems</title>
+		<imprint>
+			<biblScope unit="volume">169</biblScope>
+			<biblScope unit="page">107817</biblScope>
+			<date type="published" when="2025">2025</date>
+		</imprint>
+	</monogr>
+	<note type="raw_reference">Oshin Rawlley, Shashank Gupta, Kashish Mahajan, Aishna Shrivas- tava, and Esha Jain. Hs-giov: High-speed green internet of vehicles (iov) edge-assisted model for low-latency inference in autonomous driving. Future Generation Computer Systems, 169:107817, 2025.</note>
+</biblStruct>
+
+<biblStruct status="extracted" xml:id="b2">
+	<analytic>
+		<title level="a" type="main">Collaborative algorithms that combine ai with iot towards monitoring and control system</title>
+		<author>
+			<persName><forename type="first">Tao</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Yan</forename><surname>Zhao</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Wenjing</forename><surname>Jia</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Mu-Yen</forename><surname>Chen</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Future Generation Computer Systems</title>
+		<imprint>
+			<biblScope unit="volume">125</biblScope>
+			<biblScope unit="page" from="677" to="686" />
+			<date type="published" when="2021">2021</date>
+		</imprint>
+	</monogr>
+	<note type="raw_reference">Tao Zhang, Yan Zhao, Wenjing Jia, and Mu-Yen Chen. Collaborative algorithms that combine ai with iot towards monitoring and control system. Future Generation Computer Systems, 125:677-686, 2021.</note>
+</biblStruct>
+
+<biblStruct status="extracted" xml:id="b3">
+	<analytic>
+		<title level="a" type="main">Tutti: coupling 5g ran and mobile edge computing for latency-critical video analytics</title>
+		<author>
+			<persName><forename type="first">Dongzhu</forename><surname>Xu</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Anfu</forename><surname>Zhou</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Guixian</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Huanhuan</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Xiangyu</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Jialiang</forename><surname>Pei</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Huadong</forename><surname>Ma</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 28th Annual International Conference on Mobile Computing And Networking, MobiCom &apos;22</title>
+		<meeting>the 28th Annual International Conference on Mobile Computing And Networking, MobiCom &apos;22<address><addrLine>New York, NY, USA</addrLine></address></meeting>
+		<imprint>
+			<publisher>Association for Computing Machinery</publisher>
+			<date type="published" when="2022">2022</date>
+			<biblScope unit="page" from="729" to="742" />
+		</imprint>
+	</monogr>
+	<note type="raw_reference">Dongzhu Xu, Anfu Zhou, Guixian Wang, Huanhuan Zhang, Xiangyu Li, Jialiang Pei, and Huadong Ma. Tutti: coupling 5g ran and mobile edge computing for latency-critical video analytics. In Proceedings of the 28th Annual International Conference on Mobile Computing And Networking, MobiCom &apos;22, page 729-742, New York, NY, USA, 2022. Association for Computing Machinery.</note>
+</biblStruct>
+
+<biblStruct status="extracted" xml:id="b4">
+	<analytic>
+		<title level="a" type="main">PCTrack: Accurate Object Tracking for Live Video Analytics on Resource-Constrained Edge Devices</title>
+		<author>
+			<persName><forename type="first">Xinyi</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Haoran</forename><surname>Xu</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Chenyun</forename><surname>Yu</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Guang</forename><surname>Tan</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">IEEE Transactions on Circuits and Systems for Video Technology</title>
+		<imprint>
+			<date type="published" when="2025-05">May 2025</date>
+			<biblScope unit="volume">35</biblScope>
+			<biblScope unit="page" from="3969" to="3982" />
+		</imprint>
+	</monogr>
+	<note type="raw_reference">Xinyi Zhang, Haoran Xu, Chenyun Yu, and Guang Tan. PCTrack: Accurate Object Tracking for Live Video Analytics on Resource- Constrained Edge Devices. IEEE Transactions on Circuits and Systems for Video Technology, 35(5):3969-3982, May 2025.</note>
+</biblStruct>
+
+<biblStruct status="extracted" xml:id="b5">
+	<analytic>
+		<title level="a" type="main">Deep compressive offloading: Speeding up neural network inference by trading edge computation for network latency</title>
+		<author>
+			<persName><forename type="first">Shuochao</forename><surname>Yao</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Jinyang</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Dongxin</forename><surname>Liu</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Tianshi</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Shengzhong</forename><surname>Liu</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Huajie</forename><surname>Shao</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Tarek</forename><surname>Abdelzaher</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 18th Conference on Embedded Networked Sensor Systems</title>
+		<meeting>the 18th Conference on Embedded Networked Sensor Systems</meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2020-11">November 2020</date>
+			<biblScope unit="page" from="476" to="488" />
+		</imprint>
+	</monogr>
+	<note type="raw_reference">Shuochao Yao, Jinyang Li, Dongxin Liu, Tianshi Wang, Shengzhong Liu, Huajie Shao, and Tarek Abdelzaher. Deep compressive offload- ing: Speeding up neural network inference by trading edge computa- tion for network latency. In Proceedings of the 18th Conference on Embedded Networked Sensor Systems, pages 476-488, Virtual Event Japan, November 2020. ACM.</note>
+</biblStruct>
+
+<biblStruct status="extracted" xml:id="b6">
+	<analytic>
+		<title level="a" type="main">Edge Assisted Realtime Object Detection for Mobile Augmented Reality</title>
+		<author>
+			<persName><forename type="first">Luyang</forename><surname>Liu</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Hongyu</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Marco</forename><surname>Gruteser</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">The 25th Annual International Conference on Mobile Computing and Networking</title>
+		<meeting><address><addrLine>Los Cabos Mexico</addrLine></address></meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2019-08">August 2019</date>
+			<biblScope unit="page" from="1" to="16" />
+		</imprint>
+	</monogr>
+	<note type="raw_reference">Luyang Liu, Hongyu Li, and Marco Gruteser. Edge Assisted Real- time Object Detection for Mobile Augmented Reality. In The 25th Annual International Conference on Mobile Computing and Network- ing, pages 1-16, Los Cabos Mexico, August 2019. ACM.</note>
+</biblStruct>
+
+<biblStruct status="extracted" xml:id="b7">
+	<analytic>
+		<title level="a" type="main">Edge-Duet: Tiling Small Object Detection for Edge Assisted Autonomous Mobile Vision</title>
+		<author>
+			<persName><forename type="first">Xu</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Zheng</forename><surname>Yang</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Jiahang</forename><surname>Wu</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Yi</forename><surname>Zhao</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Zimu</forename><surname>Zhou</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">IEEE INFOCOM 2021 -IEEE Conference on Computer Communications</title>
+		<meeting><address><addrLine>Vancouver, BC, Canada</addrLine></address></meeting>
+		<imprint>
+			<publisher>IEEE</publisher>
+			<date type="published" when="2021-05">May 2021</date>
+			<biblScope unit="page" from="1" to="10" />
+		</imprint>
+	</monogr>
+	<note type="raw_reference">Xu Wang, Zheng Yang, Jiahang Wu, Yi Zhao, and Zimu Zhou. Edge- Duet: Tiling Small Object Detection for Edge Assisted Autonomous Mobile Vision. In IEEE INFOCOM 2021 -IEEE Conference on Computer Communications, pages 1-10, Vancouver, BC, Canada, May 2021. IEEE.</note>
+</biblStruct>
+
+<biblStruct status="extracted" xml:id="b8">
+	<monogr>
+		<title level="m" type="main">TileClipper: Lightweight Selection of Regions of Interest from Videos for Traffic Surveillance</title>
+		<author>
+			<persName><forename type="first">Shubham</forename><surname>Chaudhary</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Aryan</forename><surname>Taneja</surname></persName>
+		</author>
+		<imprint/>
+	</monogr>
+	<note type="raw_reference">Shubham Chaudhary and Aryan Taneja. TileClipper: Lightweight Selection of Regions of Interest from Videos for Traffic Surveillance.</note>
+</biblStruct>
+
+<biblStruct status="extracted" xml:id="b9">
+	<analytic>
+		<title level="a" type="main">Ekya: Continuous learning of video analytics models on edge compute servers</title>
+		<author>
+			<persName><forename type="first">Romil</forename><surname>Bhardwaj</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Zhengxu</forename><surname>Xia</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Ganesh</forename><surname>Ananthanarayanan</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Junchen</forename><surname>Jiang</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Yuanchao</forename><surname>Shu</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Nikolaos</forename><surname>Karianakis</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Kevin</forename><surname>Hsieh</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Paramvir</forename><surname>Bahl</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Ion</forename><surname>Stoica</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">19th USENIX Symposium on Networked Systems Design and Implementation (NSDI 22)</title>
+		<imprint>
+			<date type="published" when="2022">2022</date>
+			<biblScope unit="page" from="119" to="135" />
+		</imprint>
+	</monogr>
+	<note type="raw_reference">Romil Bhardwaj, Zhengxu Xia, Ganesh Ananthanarayanan, Junchen Jiang, Yuanchao Shu, Nikolaos Karianakis, Kevin Hsieh, Paramvir Bahl, and Ion Stoica. Ekya: Continuous learning of video analytics models on edge compute servers. In 19th USENIX Symposium on Networked Systems Design and Implementation (NSDI 22), pages 119-135, 2022.</note>
+</biblStruct>
+
+<biblStruct status="extracted" xml:id="b10">
+	<analytic>
+		<title level="a" type="main">Aiiad Albeshri, and Abdullah Abusorrah. Joint Association, Deployment and Flight Trajectory Optimization for Multi-UAV-enabled Large-Scale Mobile Edge Computing</title>
+		<author>
+			<persName><forename type="first">Shoufei</forename><surname>Han</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Xiaojing</forename><surname>Liu</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Mengchu</forename><surname>Zhou</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Kun</forename><surname>Zhu</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Liang</forename><surname>Zhao</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Transactions on Mobile Computing</title>
+		<imprint>
+			<biblScope unit="page" from="1" to="15" />
+			<date type="published" when="2024">2024</date>
+		</imprint>
+	</monogr>
+	<note type="raw_reference">Shoufei Han, Xiaojing Liu, MengChu Zhou, Kun Zhu, Liang Zhao, Aiiad Albeshri, and Abdullah Abusorrah. Joint Association, De- ployment and Flight Trajectory Optimization for Multi-UAV-enabled Large-Scale Mobile Edge Computing. IEEE Transactions on Mobile Computing, pages 1-15, 2024.</note>
+</biblStruct>
+
+<biblStruct status="extracted" xml:id="b11">
+	<analytic>
+		<title level="a" type="main">Fast R-CNN</title>
+		<author>
+			<persName><forename type="first">Ross</forename><surname>Girshick</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">2015 IEEE International Conference on Computer Vision (ICCV)</title>
+		<imprint>
+			<date type="published" when="2015-12">December 2015</date>
+			<biblScope unit="page" from="1440" to="1448" />
+		</imprint>
+	</monogr>
+	<note type="raw_reference">Ross Girshick. Fast R-CNN. In 2015 IEEE International Conference on Computer Vision (ICCV), pages 1440-1448, December 2015.</note>
+</biblStruct>
+
+<biblStruct status="extracted" xml:id="b12">
+	<monogr>
+		<title level="m" type="main">YOLC: You Only Look Clusters for Tiny Object Detection in Aerial Images</title>
+		<author>
+			<persName><forename type="first">Chenguang</forename><surname>Liu</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Guangshuai</forename><surname>Gao</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Ziyue</forename><surname>Huang</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Zhenghui</forename><surname>Hu</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Qingjie</forename><surname>Liu</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Yunhong</forename><surname>Wang</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2024-06">June 2024</date>
+		</imprint>
+	</monogr>
+	<note type="raw_reference">Chenguang Liu, Guangshuai Gao, Ziyue Huang, Zhenghui Hu, Qingjie Liu, and Yunhong Wang. YOLC: You Only Look Clusters for Tiny Object Detection in Aerial Images, June 2024.</note>
+</biblStruct>
+
+<biblStruct status="extracted" xml:id="b13">
+	<analytic>
+		<author>
+			<persName><forename type="first">Mengqi</forename><surname>Lei</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Siqi</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Yihong</forename><surname>Wu</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Han</forename><surname>Hu</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">You</forename><surname>Zhou</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Xinhu</forename><surname>Zheng</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Guiguang</forename><surname>Ding</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Shaoyi</forename><surname>Du</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Zongze</forename><surname>Wu</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Yue</forename><surname>Gao</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:2506.17733</idno>
+	</analytic>
+	<monogr>
+		<title level="m">Real-time object detection with hypergraph-enhanced adaptive visual perception</title>
+		<imprint>
+			<date type="published" when="2025">2025</date>
+			<biblScope unit="volume">13</biblScope>
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+	<note type="raw_reference">Mengqi Lei, Siqi Li, Yihong Wu, Han Hu, You Zhou, Xinhu Zheng, Guiguang Ding, Shaoyi Du, Zongze Wu, and Yue Gao. Yolov13: Real-time object detection with hypergraph-enhanced adaptive visual perception. arXiv preprint arXiv:2506.17733, 2025.</note>
+</biblStruct>
+
+<biblStruct status="extracted" xml:id="b14">
+	<analytic>
+		<title level="a" type="main">Hyper-yolo: When visual object detection meets hypergraph computation</title>
+		<author>
+			<persName><forename type="first">Yifan</forename><surname>Feng</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Jiangang</forename><surname>Huang</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Shaoyi</forename><surname>Du</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Shihui</forename><surname>Ying</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Jun-Hai</forename><surname>Yong</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Yipeng</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Guiguang</forename><surname>Ding</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Rongrong</forename><surname>Ji</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Yue</forename><surname>Gao</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Transactions on Pattern Analysis and Machine Intelligence</title>
+		<imprint>
+			<date type="published" when="2024">2024</date>
+		</imprint>
+	</monogr>
+	<note type="raw_reference">Yifan Feng, Jiangang Huang, Shaoyi Du, Shihui Ying, Jun-Hai Yong, Yipeng Li, Guiguang Ding, Rongrong Ji, and Yue Gao. Hyper-yolo: When visual object detection meets hypergraph computation. IEEE Transactions on Pattern Analysis and Machine Intelligence, 2024.</note>
+</biblStruct>
+
+<biblStruct status="extracted" xml:id="b15">
+	<analytic>
+		<title level="a" type="main">rethinking multiscale representation learning for real-time object detection</title>
+		<author>
+			<persName><forename type="first">Yuming</forename><surname>Chen</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Xinbin</forename><surname>Yuan</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Jiabao</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Ruiqi</forename><surname>Wu</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Xiang</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Qibin</forename><surname>Hou</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Ming-Ming</forename><surname>Cheng</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Transactions on Pattern Analysis and Machine Intelligence</title>
+		<imprint>
+			<date type="published" when="2025">2025</date>
+			<pubPlace>Yolo-ms</pubPlace>
+		</imprint>
+	</monogr>
+	<note type="raw_reference">Yuming Chen, Xinbin Yuan, Jiabao Wang, Ruiqi Wu, Xiang Li, Qibin Hou, and Ming-Ming Cheng. Yolo-ms: rethinking multi- scale representation learning for real-time object detection. IEEE Transactions on Pattern Analysis and Machine Intelligence, 2025.</note>
+</biblStruct>
+
+<biblStruct status="extracted" xml:id="b16">
+	<monogr>
+		<author>
+			<persName><forename type="first">Xuecheng</forename><surname>Wu</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Junxiao</forename><surname>Xue</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Liangyu</forename><surname>Fu</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Jiayu</forename><surname>Nie</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Danlei</forename><surname>Huang</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Xinyi</forename><surname>Yin</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:2412.07168</idno>
+		<title level="m">New real-time object detectors with triple discriminative awareness and coordinated representations</title>
+		<imprint>
+			<date type="published" when="2024">2024</date>
+			<biblScope unit="volume">3</biblScope>
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+	<note type="raw_reference">Xuecheng Wu, Junxiao Xue, Liangyu Fu, Jiayu Nie, Danlei Huang, and Xinyi Yin. 3a-yolo: New real-time object detectors with triple discriminative awareness and coordinated representations. arXiv preprint arXiv:2412.07168, 2024.</note>
+</biblStruct>
+
+<biblStruct status="extracted" xml:id="b17">
+	<analytic>
+		<title level="a" type="main">DeepSORT: Real Time &amp; Multi-Object Detection and Tracking with YOLO and TensorFlow</title>
+		<author>
+			<persName><forename type="first">Abhijeet</forename><surname>Pujara</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Mamta</forename><surname>Bhamare</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">2022 International Conference on Augmented Intelligence and Sustainable Systems (ICAISS)</title>
+		<imprint>
+			<date type="published" when="2022-11">November 2022</date>
+			<biblScope unit="page" from="456" to="460" />
+		</imprint>
+	</monogr>
+	<note type="raw_reference">Abhijeet Pujara and Mamta Bhamare. DeepSORT: Real Time &amp; Multi-Object Detection and Tracking with YOLO and TensorFlow. In 2022 International Conference on Augmented Intelligence and Sustainable Systems (ICAISS), pages 456-460, November 2022.</note>
+</biblStruct>
+
+<biblStruct status="extracted" xml:id="b18">
+	<analytic>
+		<title level="a" type="main">Simple online and realtime tracking</title>
+		<author>
+			<persName><forename type="first">Alex</forename><surname>Bewley</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Zongyuan</forename><surname>Ge</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Lionel</forename><surname>Ott</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Fabio</forename><surname>Ramos</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Ben</forename><surname>Upcroft</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">2016 IEEE International Conference on Image Processing (ICIP)</title>
+		<imprint>
+			<date type="published" when="2016-09">September 2016</date>
+			<biblScope unit="page" from="3464" to="3468" />
+		</imprint>
+	</monogr>
+	<note type="raw_reference">Alex Bewley, Zongyuan Ge, Lionel Ott, Fabio Ramos, and Ben Upcroft. Simple online and realtime tracking. In 2016 IEEE International Conference on Image Processing (ICIP), pages 3464- 3468, September 2016.</note>
+</biblStruct>
+
+<biblStruct status="extracted" xml:id="b19">
+	<analytic>
+		<title level="a" type="main">Multiple object tracking as id prediction</title>
+		<author>
+			<persName><forename type="first">Ruopeng</forename><surname>Gao</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Ji</forename><surname>Qi</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Limin</forename><surname>Wang</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Computer Vision and Pattern Recognition Conference</title>
+		<meeting>the Computer Vision and Pattern Recognition Conference</meeting>
+		<imprint>
+			<date type="published" when="2025">2025</date>
+			<biblScope unit="page" from="27883" to="27893" />
+		</imprint>
+	</monogr>
+	<note type="raw_reference">Ruopeng Gao, Ji Qi, and Limin Wang. Multiple object tracking as id prediction. In Proceedings of the Computer Vision and Pattern Recognition Conference, pages 27883-27893, 2025.</note>
+</biblStruct>
+
+<biblStruct status="extracted" xml:id="b20">
+	<analytic>
+		<title level="a" type="main">Omnidirectional multi-object tracking</title>
+		<author>
+			<persName><forename type="first">Kai</forename><surname>Luo</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Hao</forename><surname>Shi</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Sheng</forename><surname>Wu</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Fei</forename><surname>Teng</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Mengfei</forename><surname>Duan</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Chang</forename><surname>Huang</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Yuhang</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Kaiwei</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Kailun</forename><surname>Yang</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Computer Vision and Pattern Recognition Conference</title>
+		<meeting>the Computer Vision and Pattern Recognition Conference</meeting>
+		<imprint>
+			<date type="published" when="2025">2025</date>
+			<biblScope unit="page" from="21959" to="21969" />
+		</imprint>
+	</monogr>
+	<note type="raw_reference">Kai Luo, Hao Shi, Sheng Wu, Fei Teng, Mengfei Duan, Chang Huang, Yuhang Wang, Kaiwei Wang, and Kailun Yang. Omnidirectional multi-object tracking. In Proceedings of the Computer Vision and Pattern Recognition Conference, pages 21959-21969, 2025.</note>
+</biblStruct>
+
+<biblStruct status="extracted" xml:id="b21">
+	<analytic>
+		<title level="a" type="main">FlexDNN: Input-Adaptive On-Device Deep Learning for Efficient Mobile Vision</title>
+		<author>
+			<persName><forename type="first">Biyi</forename><surname>Fang</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Xiao</forename><surname>Zeng</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Faen</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Hui</forename><surname>Xu</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Mi</forename><surname>Zhang</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">2020 IEEE/ACM Symposium on Edge Computing (SEC)</title>
+		<meeting><address><addrLine>San Jose, CA, USA</addrLine></address></meeting>
+		<imprint>
+			<publisher>IEEE</publisher>
+			<date type="published" when="2020-11">November 2020</date>
+			<biblScope unit="page" from="84" to="95" />
+		</imprint>
+	</monogr>
+	<note type="raw_reference">Biyi Fang, Xiao Zeng, Faen Zhang, Hui Xu, and Mi Zhang. FlexDNN: Input-Adaptive On-Device Deep Learning for Efficient Mobile Vi- sion. In 2020 IEEE/ACM Symposium on Edge Computing (SEC), pages 84-95, San Jose, CA, USA, November 2020. IEEE.</note>
+</biblStruct>
+
+<biblStruct status="extracted" xml:id="b22">
+	<analytic>
+		<title level="a" type="main">MCDNN: An Approximation-Based Execution Framework for Deep Stream Processing Under Resource Constraints</title>
+		<author>
+			<persName><forename type="first">Seungyeop</forename><surname>Han</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Haichen</forename><surname>Shen</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Matthai</forename><surname>Philipose</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Sharad</forename><surname>Agarwal</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Alec</forename><surname>Wolman</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Arvind</forename><surname>Krishnamurthy</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 14th Annual International Conference on Mobile Systems, Applications, and Services</title>
+		<meeting>the 14th Annual International Conference on Mobile Systems, Applications, and Services<address><addrLine>Singapore Singapore</addrLine></address></meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2016-06">June 2016</date>
+			<biblScope unit="page" from="123" to="136" />
+		</imprint>
+	</monogr>
+	<note type="raw_reference">Seungyeop Han, Haichen Shen, Matthai Philipose, Sharad Agar- wal, Alec Wolman, and Arvind Krishnamurthy. MCDNN: An Approximation-Based Execution Framework for Deep Stream Pro- cessing Under Resource Constraints. In Proceedings of the 14th Annual International Conference on Mobile Systems, Applications, and Services, pages 123-136, Singapore Singapore, June 2016. ACM.</note>
+</biblStruct>
+
+<biblStruct status="extracted" xml:id="b23">
+	<analytic>
+		<title level="a" type="main">Joint Configuration Optimization and GPU Allocation for Multi-Tenant Real-Time Video Analytics on Resource-Constrained Edge</title>
+		<author>
+			<persName><forename type="first">Hanling</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Tianyu</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Mei</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Qing</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Huan</forename><surname>Cui</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Yong</forename><surname>Jiang</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Zhenhui</forename><surname>Yuan</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Transactions on Mobile Computing</title>
+		<imprint>
+			<biblScope unit="volume">24</biblScope>
+			<biblScope unit="issue">2</biblScope>
+			<biblScope unit="page" from="794" to="811" />
+			<date type="published" when="2025-02">February 2025</date>
+		</imprint>
+	</monogr>
+	<note type="raw_reference">Hanling Wang, Tianyu Li, Mei Zhang, Qing Li, Huan Cui, Yong Jiang, and Zhenhui Yuan. Joint Configuration Optimization and GPU Allocation for Multi-Tenant Real-Time Video Analytics on Resource-Constrained Edge. IEEE Transactions on Mobile Comput- ing, 24(2):794-811, February 2025.</note>
+</biblStruct>
+
+<biblStruct status="extracted" xml:id="b24">
+	<monogr>
+		<title level="m" type="main">AccMPEG: Optimizing Video Encoding for Video Analytics</title>
+		<author>
+			<persName><forename type="first">Kuntai</forename><surname>Du</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Qizheng</forename><surname>Zhang</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Anton</forename><surname>Arapin</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Haodong</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Zhengxu</forename><surname>Xia</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Junchen</forename><surname>Jiang</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2022-04">April 2022</date>
+		</imprint>
+	</monogr>
+	<note type="raw_reference">Kuntai Du, Qizheng Zhang, Anton Arapin, Haodong Wang, Zhengxu Xia, and Junchen Jiang. AccMPEG: Optimizing Video Encoding for Video Analytics, April 2022.</note>
+</biblStruct>
+
+<biblStruct status="extracted" xml:id="b25">
+	<analytic>
+		<title level="a" type="main">Ac-cuMO: Accuracy-Centric Multitask Offloading in Edge-Assisted Mobile Augmented Reality</title>
+		<author>
+			<persName><forename type="first">Z</forename></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Jonny</forename><surname>Kong</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Qiang</forename><surname>Xu</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Jiayi</forename><surname>Meng</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Y</forename><forename type="middle">Charlie</forename><surname>Hu</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 29th Annual International Conference on Mobile Computing and Networking</title>
+		<meeting>the 29th Annual International Conference on Mobile Computing and Networking<address><addrLine>Madrid Spain</addrLine></address></meeting>
+		<imprint>
+			<publisher>ACM</publisher>
+			<date type="published" when="2023-10">October 2023</date>
+			<biblScope unit="page" from="1" to="16" />
+		</imprint>
+	</monogr>
+	<note type="raw_reference">Z. Jonny Kong, Qiang Xu, Jiayi Meng, and Y. Charlie Hu. Ac- cuMO: Accuracy-Centric Multitask Offloading in Edge-Assisted Mo- bile Augmented Reality. In Proceedings of the 29th Annual Interna- tional Conference on Mobile Computing and Networking, pages 1-16, Madrid Spain, October 2023. ACM.</note>
+</biblStruct>
+
+<biblStruct status="extracted" xml:id="b26">
+	<analytic>
+		<title level="a" type="main">Pib: Prioritized information bottleneck framework for collaborative edge video analytics</title>
+		<author>
+			<persName><forename type="first">Zhengru</forename><surname>Fang</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Senkang</forename><surname>Hu</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Liyan</forename><surname>Yang</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Yiqin</forename><surname>Deng</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Xianhao</forename><surname>Chen</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Yuguang</forename><surname>Fang</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">GLOBECOM 2024-2024 IEEE Global Communications Conference</title>
+		<imprint>
+			<publisher>IEEE</publisher>
+			<date type="published" when="2024">2024</date>
+			<biblScope unit="page" from="5295" to="5300" />
+		</imprint>
+	</monogr>
+	<note type="raw_reference">Zhengru Fang, Senkang Hu, Liyan Yang, Yiqin Deng, Xianhao Chen, and Yuguang Fang. Pib: Prioritized information bottleneck frame- work for collaborative edge video analytics. In GLOBECOM 2024- 2024 IEEE Global Communications Conference, pages 5295-5300. IEEE, 2024.</note>
+</biblStruct>
+
+<biblStruct status="extracted" xml:id="b27">
+	<monogr>
+		<title level="m" type="main">Communication efficient cooperative edge ai via event-triggered computation offloading</title>
+		<author>
+			<persName><forename type="first">You</forename><surname>Zhou</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Changsheng</forename><surname>You</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Kaibin</forename><surname>Huang</surname></persName>
+		</author>
+		<idno type="arXiv">arXiv:2501.02001</idno>
+		<imprint>
+			<date type="published" when="2025">2025</date>
+		</imprint>
+	</monogr>
+	<note type="report_type">arXiv preprint</note>
+	<note type="raw_reference">You Zhou, Changsheng You, and Kaibin Huang. Communication effi- cient cooperative edge ai via event-triggered computation offloading. arXiv preprint arXiv:2501.02001, 2025.</note>
+</biblStruct>
+
+<biblStruct status="extracted" xml:id="b28">
+	<analytic>
+		<title level="a" type="main">Neurosurgeon: Collaborative intelligence between the cloud and mobile edge</title>
+		<author>
+			<persName><forename type="first">Y</forename><surname>Kang</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">J</forename><surname>Hauswald</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">C</forename><surname>Gao</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the Twenty-Second International Conference on Architectural Support for Programming Languages and Operating Systems (ASPLOS)</title>
+		<meeting>the Twenty-Second International Conference on Architectural Support for Programming Languages and Operating Systems (ASPLOS)</meeting>
+		<imprint>
+			<date type="published" when="2017">2017</date>
+		</imprint>
+	</monogr>
+	<note type="raw_reference">Y. Kang, J. Hauswald, C. Gao, et al. Neurosurgeon: Collaborative intelligence between the cloud and mobile edge. In Proceedings of the Twenty-Second International Conference on Architectural Support for Programming Languages and Operating Systems (ASPLOS), 2017.</note>
+</biblStruct>
+
+<biblStruct status="extracted" xml:id="b29">
+	<analytic>
+		<title level="a" type="main">Edgent: An on-demand deep learning model co-inference framework for edge intelligence</title>
+		<author>
+			<persName><forename type="first">En</forename><surname>Li</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Liekang</forename><surname>Zeng</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Zhi</forename><surname>Zhou</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Xu</forename><surname>Chen</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 16th Annual International Conference on Mobile Systems, Applications, and Services (MobiSys)</title>
+		<meeting>the 16th Annual International Conference on Mobile Systems, Applications, and Services (MobiSys)</meeting>
+		<imprint>
+			<date type="published" when="2018">2018</date>
+		</imprint>
+	</monogr>
+	<note type="raw_reference">En Li, Liekang Zeng, Zhi Zhou, and Xu Chen. Edgent: An on-demand deep learning model co-inference framework for edge intelligence. In Proceedings of the 16th Annual International Conference on Mobile Systems, Applications, and Services (MobiSys), 2018.</note>
+</biblStruct>
+
+<biblStruct status="extracted" xml:id="b30">
+	<analytic>
+		<title level="a" type="main">Bottlenet: A deep learning architecture for intelligent mobile cloud computing services</title>
+		<author>
+			<persName><forename type="first">Amirhossein</forename><surname>Amir Erfan Eshratifar</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Massoud</forename><surname>Esmaili</surname></persName>
+		</author>
+		<author>
+			<persName><surname>Pedram</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">Proceedings of the 2019 IEEE/ACM International Symposium on Low Power Electronics and Design (ISLPED)</title>
+		<meeting>the 2019 IEEE/ACM International Symposium on Low Power Electronics and Design (ISLPED)</meeting>
+		<imprint>
+			<date type="published" when="2019">2019</date>
+		</imprint>
+	</monogr>
+	<note type="raw_reference">Amir Erfan Eshratifar, Amirhossein Esmaili, and Massoud Pedram. Bottlenet: A deep learning architecture for intelligent mobile cloud computing services. In Proceedings of the 2019 IEEE/ACM Interna- tional Symposium on Low Power Electronics and Design (ISLPED), 2019.</note>
+</biblStruct>
+
+<biblStruct status="extracted" xml:id="b31">
+	<analytic>
+		<title level="a" type="main">Bottlenet++: An end-to-end approach for feature compression in device-edge co-inference systems</title>
+		<author>
+			<persName><forename type="first">Jiawei</forename><surname>Shao</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Jun</forename><surname>Zhang</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">2020 IEEE International Conference on Communications Workshops (ICC Workshops)</title>
+		<imprint>
+			<date type="published" when="2020">2020</date>
+		</imprint>
+	</monogr>
+	<note type="raw_reference">Jiawei Shao and Jun Zhang. Bottlenet++: An end-to-end approach for feature compression in device-edge co-inference systems. In 2020 IEEE International Conference on Communications Workshops (ICC Workshops), 2020.</note>
+</biblStruct>
+
+<biblStruct status="extracted" xml:id="b32">
+	<analytic>
+		<title level="a" type="main">A novel middleware for adaptive and efficient split computing for real-time object detection</title>
+		<author>
+			<persName><forename type="first">Matteo</forename><surname>Mendula</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Paolo</forename><surname>Bellavista</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Marco</forename><surname>Levorato</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Sharon Ladron De Guevara</forename><surname>Contreras</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">Pervasive and Mobile Computing</title>
+		<imprint>
+			<biblScope unit="page">102028</biblScope>
+			<date type="published" when="2025">2025</date>
+		</imprint>
+	</monogr>
+	<note type="raw_reference">Matteo Mendula, Paolo Bellavista, Marco Levorato, and Sharon Ladron de Guevara Contreras. A novel middleware for adaptive and efficient split computing for real-time object detection. Pervasive and Mobile Computing, page 102028, 2025.</note>
+</biblStruct>
+
+<biblStruct status="extracted" xml:id="b33">
+	<monogr>
+		<title level="m" type="main">Split computing and early exiting for deep learning applications: Survey and research challenges</title>
+		<author>
+			<persName><forename type="first">Yoshitomo</forename><surname>Matsubara</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Marco</forename><surname>Levorato</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Francesco</forename><surname>Restuccia</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2022">2022</date>
+			<publisher>ACM Computing Surveys</publisher>
+		</imprint>
+	</monogr>
+	<note type="raw_reference">Yoshitomo Matsubara, Marco Levorato, and Francesco Restuccia. Split computing and early exiting for deep learning applications: Survey and research challenges. ACM Computing Surveys, 2022.</note>
+</biblStruct>
+
+<biblStruct status="extracted" xml:id="b34">
+	<analytic>
+		<title level="a" type="main">You Only Look Once: Unified, Real-Time Object Detection</title>
+		<author>
+			<persName><forename type="first">Joseph</forename><surname>Redmon</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Santosh</forename><surname>Divvala</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Ross</forename><surname>Girshick</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Ali</forename><surname>Farhadi</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">2016 IEEE Conference on Computer Vision and Pattern Recognition (CVPR)</title>
+		<meeting><address><addrLine>Las Vegas, NV, USA</addrLine></address></meeting>
+		<imprint>
+			<publisher>IEEE</publisher>
+			<date type="published" when="2016-06">June 2016</date>
+			<biblScope unit="page" from="779" to="788" />
+		</imprint>
+	</monogr>
+	<note type="raw_reference">Joseph Redmon, Santosh Divvala, Ross Girshick, and Ali Farhadi. You Only Look Once: Unified, Real-Time Object Detection. In 2016 IEEE Conference on Computer Vision and Pattern Recognition (CVPR), pages 779-788, Las Vegas, NV, USA, June 2016. IEEE.</note>
+</biblStruct>
+
+<biblStruct status="extracted" xml:id="b35">
+	<analytic>
+		<title level="a" type="main">Detection and tracking meet drones challenge</title>
+		<author>
+			<persName><forename type="first">Pengfei</forename><surname>Zhu</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Longyin</forename><surname>Wen</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Dawei</forename><surname>Du</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Xiao</forename><surname>Bian</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Qinghua</forename><surname>Heng Fan</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Haibin</forename><surname>Hu</surname></persName>
+		</author>
+		<author>
+			<persName><surname>Ling</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="j">IEEE Transactions on Pattern Analysis and Machine Intelligence</title>
+		<imprint>
+			<biblScope unit="volume">44</biblScope>
+			<biblScope unit="issue">11</biblScope>
+			<biblScope unit="page" from="7380" to="7399" />
+			<date type="published" when="2021">2021</date>
+		</imprint>
+	</monogr>
+	<note type="raw_reference">Pengfei Zhu, Longyin Wen, Dawei Du, Xiao Bian, Heng Fan, Qinghua Hu, and Haibin Ling. Detection and tracking meet drones challenge. IEEE Transactions on Pattern Analysis and Machine Intelligence, 44(11):7380-7399, 2021.</note>
+</biblStruct>
+
+<biblStruct status="extracted" xml:id="b36">
+	<analytic>
+		<title level="a" type="main">Super SloMo: High Quality Estimation of Multiple Intermediate Frames for Video Interpolation</title>
+		<author>
+			<persName><forename type="first">Huaizu</forename><surname>Jiang</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Deqing</forename><surname>Sun</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Varan</forename><surname>Jampani</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Ming-Hsuan</forename><surname>Yang</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Erik</forename><surname>Learned-Miller</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Jan</forename><surname>Kautz</surname></persName>
+		</author>
+	</analytic>
+	<monogr>
+		<title level="m">2018 IEEE/CVF Conference on Computer Vision and Pattern Recognition</title>
+		<meeting><address><addrLine>Salt Lake City, UT</addrLine></address></meeting>
+		<imprint>
+			<publisher>IEEE</publisher>
+			<date type="published" when="2018-06">June 2018</date>
+			<biblScope unit="page" from="9000" to="9008" />
+		</imprint>
+	</monogr>
+	<note type="raw_reference">Huaizu Jiang, Deqing Sun, Varan Jampani, Ming-Hsuan Yang, Erik Learned-Miller, and Jan Kautz. Super SloMo: High Quality Estima- tion of Multiple Intermediate Frames for Video Interpolation. In 2018 IEEE/CVF Conference on Computer Vision and Pattern Recognition, pages 9000-9008, Salt Lake City, UT, June 2018. IEEE.</note>
+</biblStruct>
+
+<biblStruct status="extracted" xml:id="b37">
+	<monogr>
+		<title level="m" type="main">Compression Metadata-assisted RoI Extraction and Adaptive Inference for Efficient Video Analytics</title>
+		<author>
+			<persName><forename type="first">Chengzhi</forename><surname>Wang</surname></persName>
+		</author>
+		<author>
+			<persName><forename type="first">Peng</forename><surname>Yang</surname></persName>
+		</author>
+		<imprint>
+			<date type="published" when="2025-03">March 2025</date>
+		</imprint>
+	</monogr>
+	<note type="raw_reference">Chengzhi Wang and Peng Yang. Compression Metadata-assisted RoI Extraction and Adaptive Inference for Efficient Video Analytics, March 2025.</note>
+</biblStruct>
+
+				</listBibl>
+			</div>
+		</back>
+	</text>
+</TEI>

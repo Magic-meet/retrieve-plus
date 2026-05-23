@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "edu.njucm.retrievejava.rpc";
+option java_outer_classname = "RetrieveProto";
+
+package retrieve;
+
+service Word2VectorService {
+  rpc processString(StringRequest) returns (DoubleArrayResponse);
+}
+
+message StringRequest {
+  string input_string = 1;
+}
+
+message DoubleArrayResponse {
+  repeated double result_array = 1;
+}
