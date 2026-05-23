@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">
+<properties>
+    <comment>IK Analyzer custom dictionary config for retrieve_new</comment>
+    <entry key="ext_dict">custom/retrieve_new_ext.dic</entry>
+    <entry key="ext_stopwords">custom/retrieve_new_stopword.dic</entry>
+</properties>
